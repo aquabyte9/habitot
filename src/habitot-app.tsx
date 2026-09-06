@@ -640,13 +640,14 @@ function BootScreen({ label = 'Making room for your day' }: { label?: string }) 
 
 function DashboardPreview() {
   const [view, setView] = useState<View>('dashboard');
-  const [tasks, setTasks] = useState<HabitTask[]>(initialTasks);
-  const [events, setEvents] = useState(initialEvents);
+  const [tasks, setTasks] = useState<HabitTask[]>([]);
+  const [events, setEvents] = useState<HabitEvent[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const [leaderboardError, setLeaderboardError] = useState('');
-  const [xp, setXp] = useState(436);
-  const [streak, setStreak] = useState(7);
+  const [xp, setXp] = useState(0);
+  const [streak, setStreak] = useState(1);
+  const [profile, setProfile] = useState<HabitProfile | null>(null);
   const [user, setUser] = useState<HabitUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [showComposer, setShowComposer] = useState(false);
