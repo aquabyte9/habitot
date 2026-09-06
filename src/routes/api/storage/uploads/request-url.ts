@@ -11,7 +11,7 @@ export const Route = createFileRoute('/api/storage/uploads/request-url')({
         const key = `${Date.now()}-${safe}`;
         return json({
           uploadURL: `/api/storage/put/${encodeURIComponent(key)}`,
-          objectPath: `/api/storage/objects/${encodeURIComponent(key)}`,
+          objectPath: `/${encodeURIComponent(key)}`,
         });
       },
     },
