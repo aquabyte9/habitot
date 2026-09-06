@@ -7,7 +7,7 @@ export const Route = createFileRoute('/api/storage/objects/$key')({
       GET: async ({ params }) => {
         const avatar = getDemoState().avatars.get(params.key);
         if (!avatar) return new Response('Not found', { status: 404 });
-        return new Response(avatar.data, {
+        return new Response(avatar.data.slice().buffer, {
           headers: { 'Content-Type': avatar.contentType, 'Cache-Control': 'no-store' },
         });
       },
