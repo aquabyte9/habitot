@@ -895,6 +895,53 @@ function FocusView() {
   return <div className="max-w-[780px] space-y-4" data-testid="view-focus"><div><div className="eyebrow text-sky">Protect the next hour</div><h2 className="mt-2 font-display text-3xl font-semibold tracking-[-.06em]">Focus room</h2><p className="mt-2 text-sm text-[#9f9688]">No optimization required. Just a little less noise.</p></div><section className="relative overflow-hidden rounded-[20px] border border-line bg-[#252d2b] p-8 sm:p-12"><div className="absolute -right-16 -top-20 size-64 rounded-full border border-teal/20" /><div className="absolute -bottom-32 -left-10 size-72 rounded-full border border-sky/10" /><div className="relative text-center"><div className="mx-auto grid size-16 place-items-center rounded-[17px] bg-teal/15 text-teal"><Music2 className="size-7" /></div><div className="eyebrow mt-7 text-[#9dbbb0]">Quiet room · 25 minute session</div><div className="mt-5 font-mono text-[clamp(4rem,13vw,7rem)] leading-none tracking-[-.08em] text-cream" data-testid="text-focus-timer">{minutes}:{remaining}</div><div className="mt-4 text-sm text-[#a9bdb3]">A good place to put one thing down.</div><button type="button" onClick={() => setRunning(!running)} className="press mt-8 rounded-[11px] bg-flame px-6 py-3 text-sm font-semibold text-ink" data-testid="button-toggle-focus">{running ? 'Pause the room' : 'Start a focus session'}</button><button type="button" onClick={() => { setRunning(false); setSeconds(25 * 60); }} className="ml-3 rounded-[11px] border border-[#536760] px-4 py-3 text-sm text-[#b5c8be] hover:bg-[#33433e]" data-testid="button-reset-focus">Reset</button></div></section><div className="grid gap-3 sm:grid-cols-3"><div className="rounded-[14px] border border-line bg-surface p-4"><div className="font-mono text-[9px] uppercase text-[#82796d]">Sound</div><div className="mt-2 flex items-center gap-2 text-sm"><Music2 className="size-4 text-teal" /> Gentle rain</div></div><div className="rounded-[14px] border border-line bg-surface p-4"><div className="font-mono text-[9px] uppercase text-[#82796d]">Sessions</div><div className="mt-2 text-sm">03 this week</div></div><div className="rounded-[14px] border border-line bg-surface p-4"><div className="font-mono text-[9px] uppercase text-[#82796d]">Earned</div><div className="mt-2 text-sm text-flame">+75 XP</div></div></div></div>;
 }
 
+function ResetPasswordPage() {
+  const [, setLocation] = useLocation();
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+  const [done, setDone] = useState(false);
+
+  const submit = async () => {
+    if (password.length < 8) {
+      setMessage('Use at least 8 characters.');
+      return;
+    }
+    if (password !== confirm) {
+      setMessage('Both passwords need to match.');
+      return;
+    }
+    setBusy(true);
+    setMessage('');
+    try {
+      await setNewPassword(password);
+      setDone(true);
+      window.setTimeout(() => setLocation('/app'), 1200);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to update your password.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return <main className="grain landing-glow flex min-h-[100dvh] items-center justify-center px-5 py-10 text-cream">
+    <div className="w-full max-w-[440px]">
+      <Link href="/" className="mb-8 inline-flex"><Wordmark /></Link>
+      <div className="pop-in rounded-[20px] border border-line bg-surface p-5 sm:p-7" data-testid="page-reset-password">
+        <div className="eyebrow text-flame">A fresh start</div>
+        <h1 className="mt-3 font-display text-3xl font-semibold tracking-[-.06em]">Choose a new password.</h1>
+        {done ? <p className="mt-4 text-sm text-teal" role="status">All set. Taking you to your space…</p> : <form className="mt-6 grid gap-3" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
+          <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" required minLength={8} autoComplete="new-password" placeholder="New password (8+ characters)" className="rounded-[10px] border border-line bg-[#2a241f] px-4 py-3 text-sm text-cream outline-none focus:border-flame" data-testid="input-new-password" />
+          <input value={confirm} onChange={(event) => setConfirm(event.target.value)} type="password" required minLength={8} autoComplete="new-password" placeholder="Repeat new password" className="rounded-[10px] border border-line bg-[#2a241f] px-4 py-3 text-sm text-cream outline-none focus:border-flame" data-testid="input-confirm-password" />
+          <button type="submit" disabled={busy} className="press rounded-[10px] bg-flame px-5 py-3 text-sm font-semibold text-ink disabled:opacity-60" data-testid="button-save-password">{busy ? 'Saving…' : 'Save new password'}</button>
+        </form>}
+        {message && <p className="mt-3 text-xs text-coral" role="alert">{message}</p>}
+      </div>
+    </div>
+  </main>;
+}
+
 function Router() {
   return <RoutedErrorBoundary><Switch><Route path="/" component={Landing} /><Route path="/login" component={LoginPage} /><Route path="/onboarding" component={OnboardingPage} /><Route path="/app" component={DashboardPreview} /><Route path="/preview" component={LoginRedirect} /><Route component={NotFound} /></Switch></RoutedErrorBoundary>;
 }
