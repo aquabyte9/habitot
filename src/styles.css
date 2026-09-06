@@ -179,3 +179,21 @@ button, a { -webkit-tap-highlight-color: transparent; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
 }
+
+/* Duolingo-style playful motion */
+.nav-scroll { -ms-overflow-style: none; scrollbar-width: none; scroll-behavior: smooth; }
+.nav-scroll::-webkit-scrollbar { display: none; }
+.nav-pop { animation: nav-pop .38s cubic-bezier(.34,1.56,.64,1) both; }
+@keyframes nav-pop { 0% { transform: scale(.6) translateY(3px); } 60% { transform: scale(1.25) translateY(-3px); } 100% { transform: scale(1) translateY(0); } }
+
+.streak-pill { animation: streak-bounce .5s cubic-bezier(.34,1.56,.64,1) both; }
+@keyframes streak-bounce { 0% { transform: scale(.8) rotate(-6deg); } 55% { transform: scale(1.16) rotate(4deg); } 100% { transform: scale(1) rotate(0); } }
+
+.xp-fill { transition: transform .55s cubic-bezier(.34,1.4,.64,1); }
+.xp-bar-glow { position: relative; overflow: hidden; }
+.xp-bar-glow::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent); transform: translateX(-100%); animation: xp-sheen 2.4s ease-in-out infinite; }
+@keyframes xp-sheen { 0% { transform: translateX(-100%); } 60%,100% { transform: translateX(100%); } }
+
+.press:active { transform: scale(.94) translateY(1px); }
+.wiggle { animation: wiggle .5s ease both; }
+@keyframes wiggle { 0%,100% { transform: rotate(0); } 25% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } 75% { transform: rotate(-3deg); } }
