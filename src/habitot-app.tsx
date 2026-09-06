@@ -369,9 +369,9 @@ function ProfileHeader({ streak, xp, name, avatarUrl }: { streak: number; xp: nu
     <div className="flex flex-wrap items-center gap-3">
       <ProfileAvatar avatarUrl={avatarUrl} name={name} />
       <div><div className="font-display text-base font-semibold" data-testid="text-profile-name">{name}</div><div className="eyebrow mt-1 text-[#82796d]">Level {level} · finding momentum</div></div>
-      <div className="ml-auto flex items-center gap-2 rounded-full border border-flame/25 bg-flame/10 px-3 py-2"><Flame className="size-4 text-flame" fill="currentColor" /><span className="font-display text-sm font-semibold">Current streak: {streak}</span><span className="font-mono text-[9px] uppercase text-flame/80">days</span></div>
+      <div className="streak-pill ml-auto flex items-center gap-2 rounded-full border border-flame/25 bg-flame/10 px-3 py-2" key={streak}><Flame className="size-4 text-flame" fill="currentColor" /><span className="font-display text-sm font-semibold">Current streak: {streak}</span><span className="font-mono text-[9px] uppercase text-flame/80">days</span></div>
     </div>
-    <div className="mt-5"><div className="mb-2 flex items-end justify-between"><span className="eyebrow text-[#82796d]">XP to level {level + 1}</span><span className="font-mono text-[11px] text-[#b0a797]">{Math.max(0, into)} / {goal}</span></div><div className="h-2 overflow-hidden rounded-full bg-[#433b32]"><div className="xp-fill h-full rounded-full bg-flame" style={{ width: `${pct}%` }} /></div></div>
+    <div className="mt-5"><div className="mb-2 flex items-end justify-between"><span className="eyebrow text-[#82796d]">XP to level {level + 1}</span><span className="font-mono text-[11px] text-[#b0a797]" data-testid="text-xp-progress">{Math.max(0, into)} / {goal}</span></div><div className="h-2 overflow-hidden rounded-full bg-[#433b32]"><div className="h-full rounded-full bg-flame transition-[width] duration-700 ease-out" style={{ width: `${pct}%` }} data-testid="bar-xp" /></div></div>
   </section>;
 }
 
