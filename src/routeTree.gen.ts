@@ -10,6 +10,10 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppRouteImport } from './routes/app'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as PreviewRouteImport } from './routes/preview'
 import { Route as ApiLeaderboardRouteImport } from './routes/api/leaderboard'
 import { Route as ApiProfileRouteImport } from './routes/api/profile'
 import { Route as ApiTasksRouteImport } from './routes/api/tasks'
@@ -25,6 +29,26 @@ import { Route as ApiStorageUploadsRequestUrlRouteImport } from './routes/api/st
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppRoute = AppRouteImport.update({
+  id: '/app',
+  path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PreviewRoute = PreviewRouteImport.update({
+  id: '/preview',
+  path: '/preview',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiLeaderboardRoute = ApiLeaderboardRouteImport.update({
@@ -86,6 +110,10 @@ const ApiStorageUploadsRequestUrlRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/app': typeof AppRoute
+  '/login': typeof LoginRoute
+  '/onboarding': typeof OnboardingRoute
+  '/preview': typeof PreviewRoute
   '/api/leaderboard': typeof ApiLeaderboardRoute
   '/api/profile': typeof ApiProfileRoute
   '/api/tasks': typeof ApiTasksRouteWithChildren
@@ -100,6 +128,10 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/app': typeof AppRoute
+  '/login': typeof LoginRoute
+  '/onboarding': typeof OnboardingRoute
+  '/preview': typeof PreviewRoute
   '/api/leaderboard': typeof ApiLeaderboardRoute
   '/api/profile': typeof ApiProfileRoute
   '/api/tasks': typeof ApiTasksRouteWithChildren
@@ -115,6 +147,10 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/app': typeof AppRoute
+  '/login': typeof LoginRoute
+  '/onboarding': typeof OnboardingRoute
+  '/preview': typeof PreviewRoute
   '/api/leaderboard': typeof ApiLeaderboardRoute
   '/api/profile': typeof ApiProfileRoute
   '/api/tasks': typeof ApiTasksRouteWithChildren
@@ -131,6 +167,10 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/app'
+    | '/login'
+    | '/onboarding'
+    | '/preview'
     | '/api/leaderboard'
     | '/api/profile'
     | '/api/tasks'
@@ -145,6 +185,10 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/app'
+    | '/login'
+    | '/onboarding'
+    | '/preview'
     | '/api/leaderboard'
     | '/api/profile'
     | '/api/tasks'
@@ -159,6 +203,10 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/app'
+    | '/login'
+    | '/onboarding'
+    | '/preview'
     | '/api/leaderboard'
     | '/api/profile'
     | '/api/tasks'
@@ -174,6 +222,10 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AppRoute: typeof AppRoute
+  LoginRoute: typeof LoginRoute
+  OnboardingRoute: typeof OnboardingRoute
+  PreviewRoute: typeof PreviewRoute
   ApiLeaderboardRoute: typeof ApiLeaderboardRoute
   ApiProfileRoute: typeof ApiProfileRoute
   ApiTasksRoute: typeof ApiTasksRouteWithChildren
@@ -193,6 +245,34 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/app': {
+      id: '/app'
+      path: '/app'
+      fullPath: '/app'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/preview': {
+      id: '/preview'
+      path: '/preview'
+      fullPath: '/preview'
+      preLoaderRoute: typeof PreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/leaderboard': {
@@ -289,6 +369,10 @@ const ApiTasksRouteWithChildren = ApiTasksRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AppRoute: AppRoute,
+  LoginRoute: LoginRoute,
+  OnboardingRoute: OnboardingRoute,
+  PreviewRoute: PreviewRoute,
   ApiLeaderboardRoute: ApiLeaderboardRoute,
   ApiProfileRoute: ApiProfileRoute,
   ApiTasksRoute: ApiTasksRouteWithChildren,
