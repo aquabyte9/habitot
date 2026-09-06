@@ -94,7 +94,7 @@ const avatarPresets = [
   { id: 'sun', label: 'Sun', symbol: '☼', tone: 'bg-coral text-ink' },
 ];
 
-function ProfileAvatar({ avatarUrl, name = 'M', size = 'size-12' }: { avatarUrl?: string | null; name?: string; size?: string }) {
+function ProfileAvatar({ avatarUrl, name = 'M', size = 'size-12' }: { avatarUrl?: string | null | undefined; name?: string; size?: string }) {
   if (avatarUrl?.startsWith('/api/storage/objects/') || avatarUrl?.startsWith('http')) {
     return <img src={avatarUrl} alt="" className={`${size} rounded-[12px] object-cover`} />;
   }
@@ -804,7 +804,7 @@ function LeaderboardRow({ entry, rank }: { entry: LeaderboardEntry; rank: number
   </div>;
 }
 
-function Overview({ tasks, events, done, xp, streak, name, avatarUrl, onToggle, onView }: { tasks: HabitTask[]; events: HabitEvent[]; done: number; xp: number; streak: number; name: string; avatarUrl?: string | null; onToggle: (id: string) => void; onView: (view: View) => void }) {
+function Overview({ tasks, events, done, xp, streak, name, avatarUrl, onToggle, onView }: { tasks: HabitTask[]; events: HabitEvent[]; done: number; xp: number; streak: number; name: string; avatarUrl?: string | null | undefined; onToggle: (id: string) => void; onView: (view: View) => void }) {
   return <div className="space-y-4">
     <div className="lg:hidden"><div className="eyebrow text-[#796f62]">{new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</div><h1 className="mt-2 font-display text-2xl font-semibold tracking-[-.05em]">A good day to begin.</h1></div>
     <ProfileHeader streak={streak} xp={xp} name={name} avatarUrl={avatarUrl} />
