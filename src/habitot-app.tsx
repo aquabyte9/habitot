@@ -1078,13 +1078,70 @@ function CalendarView({ events, onAdd }: { events: HabitEvent[]; onAdd: (event: 
   </div>;
 }
 
-function FocusView() {
+function FocusView({ onSessionComplete }: { onSessionComplete: (xp: number) => void }) {
+  const SESSION = 25 * 60;
+  const SESSION_XP = 25;
   const [running, setRunning] = useState(false);
-  const [seconds, setSeconds] = useState(25 * 60);
-  useEffect(() => { if (!running) return; const timer = window.setInterval(() => setSeconds((value) => value > 0 ? value - 1 : 25 * 60), 1000); return () => window.clearInterval(timer); }, [running]);
+  const [seconds, setSeconds] = useState(SESSION);
+  const [sessions, setSessions] = useState(0);
+  const [earned, setEarned] = useState(0);
+  const [link, setLink] = useState('');
+  const { load, error, track, playing, toggle, stop } = usePlayer();
+
+  useEffect(() => {
+    if (!running) return;
+    const timer = window.setInterval(() => setSeconds((value) => {
+      if (value > 1) return value - 1;
+      window.setTimeout(() => {
+        setRunning(false);
+        setSessions((count) => count + 1);
+        setEarned((total) => total + SESSION_XP);
+        onSessionComplete(SESSION_XP);
+      }, 0);
+      return SESSION;
+    }), 1000);
+    return () => window.clearInterval(timer);
+  }, [running, onSessionComplete]);
+
   const minutes = String(Math.floor(seconds / 60)).padStart(2, '0');
   const remaining = String(seconds % 60).padStart(2, '0');
-  return <div className="max-w-[780px] space-y-4" data-testid="view-focus"><div><div className="eyebrow text-sky">Protect the next hour</div><h2 className="mt-2 font-display text-3xl font-semibold tracking-[-.06em]">Focus room</h2><p className="mt-2 text-sm text-[#9f9688]">No optimization required. Just a little less noise.</p></div><section className="relative overflow-hidden rounded-[20px] border border-line bg-[#252d2b] p-8 sm:p-12"><div className="absolute -right-16 -top-20 size-64 rounded-full border border-teal/20" /><div className="absolute -bottom-32 -left-10 size-72 rounded-full border border-sky/10" /><div className="relative text-center"><div className="mx-auto grid size-16 place-items-center rounded-[17px] bg-teal/15 text-teal"><Music2 className="size-7" /></div><div className="eyebrow mt-7 text-[#9dbbb0]">Quiet room · 25 minute session</div><div className="mt-5 font-mono text-[clamp(4rem,13vw,7rem)] leading-none tracking-[-.08em] text-cream" data-testid="text-focus-timer">{minutes}:{remaining}</div><div className="mt-4 text-sm text-[#a9bdb3]">A good place to put one thing down.</div><button type="button" onClick={() => setRunning(!running)} className="press mt-8 rounded-[11px] bg-flame px-6 py-3 text-sm font-semibold text-ink" data-testid="button-toggle-focus">{running ? 'Pause the room' : 'Start a focus session'}</button><button type="button" onClick={() => { setRunning(false); setSeconds(25 * 60); }} className="ml-3 rounded-[11px] border border-[#536760] px-4 py-3 text-sm text-[#b5c8be] hover:bg-[#33433e]" data-testid="button-reset-focus">Reset</button></div></section><div className="grid gap-3 sm:grid-cols-3"><div className="rounded-[14px] border border-line bg-surface p-4"><div className="font-mono text-[9px] uppercase text-[#82796d]">Sound</div><div className="mt-2 flex items-center gap-2 text-sm"><Music2 className="size-4 text-teal" /> Gentle rain</div></div><div className="rounded-[14px] border border-line bg-surface p-4"><div className="font-mono text-[9px] uppercase text-[#82796d]">Sessions</div><div className="mt-2 text-sm">03 this week</div></div><div className="rounded-[14px] border border-line bg-surface p-4"><div className="font-mono text-[9px] uppercase text-[#82796d]">Earned</div><div className="mt-2 text-sm text-flame">+75 XP</div></div></div></div>;
+
+  return <div className="max-w-[780px] space-y-4 pb-28 lg:pb-4" data-testid="view-focus">
+    <div><div className="eyebrow text-sky">Protect the next hour</div><h2 className="mt-2 font-display text-3xl font-semibold tracking-[-.06em]">Focus room</h2><p className="mt-2 text-sm text-[#9f9688]">No optimization required. Just a little less noise.</p></div>
+    <section className="relative overflow-hidden rounded-[20px] border border-line bg-[#252d2b] p-8 sm:p-12">
+      <div className="absolute -right-16 -top-20 size-64 rounded-full border border-teal/20" />
+      <div className="absolute -bottom-32 -left-10 size-72 rounded-full border border-sky/10" />
+      <div className="relative text-center">
+        <div className="mx-auto grid size-16 place-items-center rounded-[17px] bg-teal/15 text-teal"><Music2 className="size-7" /></div>
+        <div className="eyebrow mt-7 text-[#9dbbb0]">Quiet room · 25 minute session</div>
+        <div className="mt-5 font-mono text-[clamp(4rem,13vw,7rem)] leading-none tracking-[-.08em] text-cream" data-testid="text-focus-timer">{minutes}:{remaining}</div>
+        <div className="mt-4 text-sm text-[#a9bdb3]">A good place to put one thing down.</div>
+        <button type="button" onClick={() => setRunning(!running)} className="press mt-8 rounded-[11px] bg-flame px-6 py-3 text-sm font-semibold text-ink" data-testid="button-toggle-focus">{running ? 'Pause the room' : 'Start a focus session'}</button>
+        <button type="button" onClick={() => { setRunning(false); setSeconds(SESSION); }} className="ml-3 rounded-[11px] border border-[#536760] px-4 py-3 text-sm text-[#b5c8be] hover:bg-[#33433e]" data-testid="button-reset-focus">Reset</button>
+      </div>
+    </section>
+
+    <section className="rounded-[16px] border border-line bg-surface p-4 sm:p-5" data-testid="card-music">
+      <div className="flex items-center gap-2"><Music2 className="size-4 text-teal" /><h3 className="font-display text-sm font-semibold">Bring your own sound</h3></div>
+      <p className="mt-2 text-[12px] leading-5 text-[#9f9688]">Paste a YouTube Music, Spotify, or direct audio link. It keeps playing while you move between tabs.</p>
+      <form className="mt-3 flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); if (load(link)) setLink(''); }}>
+        <input value={link} onChange={(event) => setLink(event.target.value)} placeholder="https://open.spotify.com/… or https://music.youtube.com/…" className="min-w-0 flex-1 rounded-[10px] border border-line bg-[#2a241f] px-3 py-2.5 text-sm text-cream outline-none focus:border-flame" data-testid="input-music-link" />
+        <button type="submit" className="press rounded-[10px] bg-teal px-4 py-2.5 text-xs font-semibold text-ink" data-testid="button-music-play">Play it</button>
+      </form>
+      {error && <p className="mt-2 text-xs text-coral" role="alert">{error}</p>}
+      {track && <div className="mt-3 flex flex-wrap items-center gap-2 text-[12px] text-[#a49b8a]">
+        <span className="truncate">Now playing · {track.title}</span>
+        {track.kind === 'audio' && <button type="button" onClick={toggle} className="press rounded-[9px] border border-line px-3 py-1.5 text-[11px] text-cream" data-testid="button-music-toggle">{playing ? 'Pause' : 'Play'}</button>}
+        <button type="button" onClick={stop} className="press rounded-[9px] border border-line px-3 py-1.5 text-[11px] text-cream" data-testid="button-music-stop">Stop</button>
+      </div>}
+    </section>
+
+    <div className="grid gap-3 sm:grid-cols-3">
+      <div className="rounded-[14px] border border-line bg-surface p-4"><div className="font-mono text-[9px] uppercase text-[#82796d]">Sound</div><div className="mt-2 flex items-center gap-2 truncate text-sm"><Music2 className="size-4 text-teal" /> {track ? track.title : 'Nothing playing yet'}</div></div>
+      <div className="rounded-[14px] border border-line bg-surface p-4"><div className="font-mono text-[9px] uppercase text-[#82796d]">Sessions</div><div className="mt-2 text-sm" data-testid="text-focus-sessions">{String(sessions).padStart(2, '0')} this week</div></div>
+      <div className="rounded-[14px] border border-line bg-surface p-4"><div className="font-mono text-[9px] uppercase text-[#82796d]">Earned</div><div className="mt-2 text-sm text-flame" data-testid="text-focus-earned">+{earned} XP</div></div>
+    </div>
+  </div>;
 }
 
 function ResetPasswordPage() {
