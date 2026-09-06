@@ -21,6 +21,7 @@ export type Database = {
           display_name: string | null
           height_cm: number | null
           id: string
+          last_active_on: string | null
           life_goals: string[] | null
           onboarded: boolean
           streak_days: number
@@ -33,6 +34,7 @@ export type Database = {
           display_name?: string | null
           height_cm?: number | null
           id: string
+          last_active_on?: string | null
           life_goals?: string[] | null
           onboarded?: boolean
           streak_days?: number
@@ -45,6 +47,7 @@ export type Database = {
           display_name?: string | null
           height_cm?: number | null
           id?: string
+          last_active_on?: string | null
           life_goals?: string[] | null
           onboarded?: boolean
           streak_days?: number
