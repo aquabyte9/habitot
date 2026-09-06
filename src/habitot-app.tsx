@@ -70,6 +70,193 @@ const navItems: { id: View; label: string; icon: typeof LayoutGrid }[] = [
   { id: 'profile', label: 'Profile', icon: UserIcon },
 ];
 
+
+/* ---------------- Theme (light/dark + accent) ---------------- */
+
+type ThemeMode = 'dark' | 'light';
+type AccentId = 'amber' | 'coral' | 'teal' | 'sky' | 'violet';
+
+const ACCENTS: { id: AccentId; label: string; color: string }[] = [
+  { id: 'amber', label: 'Ember', color: '#f3b464' },
+  { id: 'coral', label: 'Clay', color: '#df765d' },
+  { id: 'teal', label: 'Fern', color: '#69b39a' },
+  { id: 'sky', label: 'Tide', color: '#82a8ba' },
+];
+
+type ThemeValue = { mode: ThemeMode; accent: AccentId; setMode: (mode: ThemeMode) => void; setAccent: (accent: AccentId) => void };
+const ThemeContext = createContext<ThemeValue>({ mode: 'dark', accent: 'amber', setMode: () => undefined, setAccent: () => undefined });
+const useTheme = () => useContext(ThemeContext);
+
+function ThemeProvider({ children }: { children: ReactNode }) {
+  const [mode, setMode] = useState<ThemeMode>('dark');
+  const [accent, setAccent] = useState<AccentId>('amber');
+
+  useEffect(() => {
+    const savedMode = window.localStorage.getItem('habitot-theme');
+    const savedAccent = window.localStorage.getItem('habitot-accent');
+    if (savedMode === 'light' || savedMode === 'dark') setMode(savedMode);
+    if (savedAccent && ACCENTS.some((item) => item.id === savedAccent)) setAccent(savedAccent as AccentId);
+  }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.setAttribute('data-theme', mode);
+    root.setAttribute('data-accent', accent);
+    window.localStorage.setItem('habitot-theme', mode);
+    window.localStorage.setItem('habitot-accent', accent);
+  }, [mode, accent]);
+
+  const value = useMemo(() => ({ mode, accent, setMode, setAccent }), [mode, accent]);
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+}
+
+function ThemeSwitch({ compact = false }: { compact?: boolean }) {
+  const { mode, setMode } = useTheme();
+  return <button
+    type="button"
+    onClick={() => setMode(mode === 'dark' ? 'light' : 'dark')}
+    className={`press grid ${compact ? 'size-9' : 'size-10'} place-items-center rounded-full border border-line bg-[#29241f] text-flame hover:bg-[#332d26]`}
+    aria-label={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+    data-testid="button-theme-toggle"
+  >{mode === 'dark' ? <Sun className="size-4 nav-pop" key="sun" /> : <Moon className="size-4 nav-pop" key="moon" />}</button>;
+}
+
+function AccentPicker() {
+  const { accent, setAccent } = useTheme();
+  return <div className="flex items-center gap-2" data-testid="picker-accent">
+    {ACCENTS.map((item) => <button
+      key={item.id}
+      type="button"
+      onClick={() => setAccent(item.id)}
+      aria-label={`Use the ${item.label} colour`}
+      aria-pressed={accent === item.id}
+      className={`press size-7 rounded-full border-2 transition-transform ${accent === item.id ? 'scale-110 border-cream' : 'border-transparent'}`}
+      style={{ background: item.color }}
+      data-testid={`button-accent-${item.id}`}
+    />)}
+  </div>;
+}
+
+/* ---------------- Sticky music player ---------------- */
+
+type Track = { kind: 'audio' | 'embed'; src: string; title: string; url: string };
+
+function parseMedia(raw: string): Track | null {
+  const url = raw.trim();
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace(/^www\./, '');
+    if (host.endsWith('youtube.com') || host === 'youtu.be' || host.endsWith('youtube-nocookie.com')) {
+      const id = host === 'youtu.be' ? parsed.pathname.slice(1) : parsed.searchParams.get('v');
+      const list = parsed.searchParams.get('list');
+      if (id) return { kind: 'embed', src: `https://www.youtube.com/embed/${id}?autoplay=1&playsinline=1${list ? `&list=${list}` : ''}`, title: 'YouTube Music', url };
+      if (list) return { kind: 'embed', src: `https://www.youtube.com/embed/videoseries?list=${list}&autoplay=1`, title: 'YouTube playlist', url };
+      return null;
+    }
+    if (host.endsWith('spotify.com')) {
+      const parts = parsed.pathname.split('/').filter(Boolean);
+      const index = parts.findIndex((part) => ['track', 'playlist', 'album', 'episode', 'show', 'artist'].includes(part));
+      const kindPart = parts[index];
+      const idPart = parts[index + 1];
+      if (index >= 0 && kindPart && idPart) return { kind: 'embed', src: `https://open.spotify.com/embed/${kindPart}/${idPart}?utm_source=habitot`, title: 'Spotify', url };
+      return null;
+    }
+    const name = decodeURIComponent(parsed.pathname.split('/').pop() || '') || parsed.hostname;
+    return { kind: 'audio', src: url, title: name, url };
+  } catch {
+    return null;
+  }
+}
+
+type PlayerValue = {
+  track: Track | null;
+  playing: boolean;
+  volume: number;
+  error: string;
+  load: (url: string) => boolean;
+  toggle: () => void;
+  stop: () => void;
+  setVolume: (value: number) => void;
+};
+const PlayerContext = createContext<PlayerValue>({
+  track: null, playing: false, volume: 0.8, error: '',
+  load: () => false, toggle: () => undefined, stop: () => undefined, setVolume: () => undefined,
+});
+const usePlayer = () => useContext(PlayerContext);
+
+function PlayerProvider({ children }: { children: ReactNode }) {
+  const [track, setTrack] = useState<Track | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [volume, setVolumeState] = useState(0.8);
+  const [error, setError] = useState('');
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const load = useCallback((url: string) => {
+    const parsedTrack = parseMedia(url);
+    if (!parsedTrack) {
+      setError('That link is not one we can play. Try a YouTube Music, Spotify or direct audio link.');
+      return false;
+    }
+    setError('');
+    setTrack(parsedTrack);
+    setPlaying(true);
+    return true;
+  }, []);
+
+  const toggle = useCallback(() => {
+    setPlaying((current) => {
+      const next = !current;
+      const audio = audioRef.current;
+      if (audio) {
+        if (next) void audio.play().catch(() => setError('Your browser blocked playback. Tap play again.'));
+        else audio.pause();
+      }
+      return next;
+    });
+  }, []);
+
+  const stop = useCallback(() => {
+    audioRef.current?.pause();
+    setTrack(null);
+    setPlaying(false);
+  }, []);
+
+  const setVolume = useCallback((value: number) => {
+    setVolumeState(value);
+    if (audioRef.current) audioRef.current.volume = value;
+  }, []);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !track || track.kind !== 'audio') return;
+    audio.volume = volume;
+    if (playing) void audio.play().catch(() => setError('Your browser blocked playback. Tap play again.'));
+  }, [track, playing, volume]);
+
+  const value = useMemo(() => ({ track, playing, volume, error, load, toggle, stop, setVolume }), [track, playing, volume, error, load, toggle, stop, setVolume]);
+
+  return <PlayerContext.Provider value={value}>
+    {children}
+    {track && <div className="fade-up fixed inset-x-0 bottom-[74px] z-30 px-3 lg:bottom-4 lg:left-auto lg:right-4 lg:w-[430px] lg:px-0" data-testid="player-sticky">
+      <div className="flex items-center gap-3 rounded-[14px] border border-line bg-raised/95 p-2.5 shadow-lg backdrop-blur-md">
+        {track.kind === 'audio' ? <>
+          <audio ref={audioRef} src={track.src} onEnded={() => setPlaying(false)} onError={() => setError('That audio link would not load.')} />
+          <button type="button" onClick={toggle} className="press grid size-10 shrink-0 place-items-center rounded-full bg-flame text-ink" aria-label={playing ? 'Pause' : 'Play'} data-testid="button-player-toggle">{playing ? <Pause className="size-4" fill="currentColor" /> : <Play className="size-4" fill="currentColor" />}</button>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[12px] font-semibold text-cream" data-testid="text-player-title">{track.title}</div>
+            <div className="mt-1 flex items-center gap-2"><Volume2 className="size-3.5 text-[#a49b8a]" /><input aria-label="Volume" type="range" min={0} max={1} step={0.01} value={volume} onChange={(event) => setVolume(Number(event.target.value))} className="h-1 w-full accent-[var(--flame)]" data-testid="input-player-volume" /></div>
+          </div>
+        </> : <div className="min-w-0 flex-1">
+          <div className="mb-1 truncate text-[11px] font-semibold text-cream">{track.title}</div>
+          <iframe title={track.title} src={track.src} allow="autoplay; encrypted-media; clipboard-write; picture-in-picture" className="h-[80px] w-full rounded-[10px] border-0" data-testid="frame-player-embed" />
+        </div>}
+        <button type="button" onClick={stop} className="press grid size-8 shrink-0 place-items-center rounded-full border border-line text-[#a49b8a] hover:text-cream" aria-label="Close the player" data-testid="button-player-close"><X className="size-4" /></button>
+      </div>
+    </div>}
+  </PlayerContext.Provider>;
+}
+
 function MascotMark({ className = 'size-10' }: { className?: string }) {
   return (
     <svg viewBox="0 0 48 48" className={className} aria-label="Habitot mascot" role="img">
