@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { createContext, type ReactNode, useContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -41,6 +41,8 @@ import {
   Menu,
   Moon,
   Music2,
+  Pause,
+  Play,
   Plus,
   RotateCcw,
   Settings2,
@@ -48,12 +50,14 @@ import {
   Sun,
   Target,
   Trophy,
+  User as UserIcon,
+  Volume2,
   X,
 } from 'lucide-react';
 
 const queryClient = new QueryClient();
 
-type View = 'dashboard' | 'tasks' | 'calendar' | 'focus' | 'leaderboard';
+type View = 'dashboard' | 'tasks' | 'calendar' | 'focus' | 'leaderboard' | 'profile';
 type HabitEvent = { id: string; day: string; date: string; title: string; time: string; tone: 'teal' | 'coral' | 'sky' };
 
 
@@ -63,7 +67,195 @@ const navItems: { id: View; label: string; icon: typeof LayoutGrid }[] = [
   { id: 'calendar', label: 'Calendar', icon: CalendarDays },
   { id: 'focus', label: 'Focus', icon: Music2 },
   { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
+  { id: 'profile', label: 'Profile', icon: UserIcon },
 ];
+
+
+/* ---------------- Theme (light/dark + accent) ---------------- */
+
+type ThemeMode = 'dark' | 'light';
+type AccentId = 'amber' | 'coral' | 'teal' | 'sky' | 'violet';
+
+const ACCENTS: { id: AccentId; label: string; color: string }[] = [
+  { id: 'amber', label: 'Ember', color: '#f3b464' },
+  { id: 'coral', label: 'Clay', color: '#df765d' },
+  { id: 'teal', label: 'Fern', color: '#69b39a' },
+  { id: 'sky', label: 'Tide', color: '#82a8ba' },
+];
+
+type ThemeValue = { mode: ThemeMode; accent: AccentId; setMode: (mode: ThemeMode) => void; setAccent: (accent: AccentId) => void };
+const ThemeContext = createContext<ThemeValue>({ mode: 'dark', accent: 'amber', setMode: () => undefined, setAccent: () => undefined });
+const useTheme = () => useContext(ThemeContext);
+
+function ThemeProvider({ children }: { children: ReactNode }) {
+  const [mode, setMode] = useState<ThemeMode>('dark');
+  const [accent, setAccent] = useState<AccentId>('amber');
+
+  useEffect(() => {
+    const savedMode = window.localStorage.getItem('habitot-theme');
+    const savedAccent = window.localStorage.getItem('habitot-accent');
+    if (savedMode === 'light' || savedMode === 'dark') setMode(savedMode);
+    if (savedAccent && ACCENTS.some((item) => item.id === savedAccent)) setAccent(savedAccent as AccentId);
+  }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.setAttribute('data-theme', mode);
+    root.setAttribute('data-accent', accent);
+    window.localStorage.setItem('habitot-theme', mode);
+    window.localStorage.setItem('habitot-accent', accent);
+  }, [mode, accent]);
+
+  const value = useMemo(() => ({ mode, accent, setMode, setAccent }), [mode, accent]);
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+}
+
+function ThemeSwitch({ compact = false }: { compact?: boolean }) {
+  const { mode, setMode } = useTheme();
+  return <button
+    type="button"
+    onClick={() => setMode(mode === 'dark' ? 'light' : 'dark')}
+    className={`press grid ${compact ? 'size-9' : 'size-10'} place-items-center rounded-full border border-line bg-[#29241f] text-flame hover:bg-[#332d26]`}
+    aria-label={mode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+    data-testid="button-theme-toggle"
+  >{mode === 'dark' ? <Sun className="size-4 nav-pop" key="sun" /> : <Moon className="size-4 nav-pop" key="moon" />}</button>;
+}
+
+function AccentPicker() {
+  const { accent, setAccent } = useTheme();
+  return <div className="flex items-center gap-2" data-testid="picker-accent">
+    {ACCENTS.map((item) => <button
+      key={item.id}
+      type="button"
+      onClick={() => setAccent(item.id)}
+      aria-label={`Use the ${item.label} colour`}
+      aria-pressed={accent === item.id}
+      className={`press size-7 rounded-full border-2 transition-transform ${accent === item.id ? 'scale-110 border-cream' : 'border-transparent'}`}
+      style={{ background: item.color }}
+      data-testid={`button-accent-${item.id}`}
+    />)}
+  </div>;
+}
+
+/* ---------------- Sticky music player ---------------- */
+
+type Track = { kind: 'audio' | 'embed'; src: string; title: string; url: string };
+
+function parseMedia(raw: string): Track | null {
+  const url = raw.trim();
+  if (!url) return null;
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace(/^www\./, '');
+    if (host.endsWith('youtube.com') || host === 'youtu.be' || host.endsWith('youtube-nocookie.com')) {
+      const id = host === 'youtu.be' ? parsed.pathname.slice(1) : parsed.searchParams.get('v');
+      const list = parsed.searchParams.get('list');
+      if (id) return { kind: 'embed', src: `https://www.youtube.com/embed/${id}?autoplay=1&playsinline=1${list ? `&list=${list}` : ''}`, title: 'YouTube Music', url };
+      if (list) return { kind: 'embed', src: `https://www.youtube.com/embed/videoseries?list=${list}&autoplay=1`, title: 'YouTube playlist', url };
+      return null;
+    }
+    if (host.endsWith('spotify.com')) {
+      const parts = parsed.pathname.split('/').filter(Boolean);
+      const index = parts.findIndex((part) => ['track', 'playlist', 'album', 'episode', 'show', 'artist'].includes(part));
+      const kindPart = parts[index];
+      const idPart = parts[index + 1];
+      if (index >= 0 && kindPart && idPart) return { kind: 'embed', src: `https://open.spotify.com/embed/${kindPart}/${idPart}?utm_source=habitot`, title: 'Spotify', url };
+      return null;
+    }
+    const name = decodeURIComponent(parsed.pathname.split('/').pop() || '') || parsed.hostname;
+    return { kind: 'audio', src: url, title: name, url };
+  } catch {
+    return null;
+  }
+}
+
+type PlayerValue = {
+  track: Track | null;
+  playing: boolean;
+  volume: number;
+  error: string;
+  load: (url: string) => boolean;
+  toggle: () => void;
+  stop: () => void;
+  setVolume: (value: number) => void;
+};
+const PlayerContext = createContext<PlayerValue>({
+  track: null, playing: false, volume: 0.8, error: '',
+  load: () => false, toggle: () => undefined, stop: () => undefined, setVolume: () => undefined,
+});
+const usePlayer = () => useContext(PlayerContext);
+
+function PlayerProvider({ children }: { children: ReactNode }) {
+  const [track, setTrack] = useState<Track | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [volume, setVolumeState] = useState(0.8);
+  const [error, setError] = useState('');
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const load = useCallback((url: string) => {
+    const parsedTrack = parseMedia(url);
+    if (!parsedTrack) {
+      setError('That link is not one we can play. Try a YouTube Music, Spotify or direct audio link.');
+      return false;
+    }
+    setError('');
+    setTrack(parsedTrack);
+    setPlaying(true);
+    return true;
+  }, []);
+
+  const toggle = useCallback(() => {
+    setPlaying((current) => {
+      const next = !current;
+      const audio = audioRef.current;
+      if (audio) {
+        if (next) void audio.play().catch(() => setError('Your browser blocked playback. Tap play again.'));
+        else audio.pause();
+      }
+      return next;
+    });
+  }, []);
+
+  const stop = useCallback(() => {
+    audioRef.current?.pause();
+    setTrack(null);
+    setPlaying(false);
+  }, []);
+
+  const setVolume = useCallback((value: number) => {
+    setVolumeState(value);
+    if (audioRef.current) audioRef.current.volume = value;
+  }, []);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !track || track.kind !== 'audio') return;
+    audio.volume = volume;
+    if (playing) void audio.play().catch(() => setError('Your browser blocked playback. Tap play again.'));
+  }, [track, playing, volume]);
+
+  const value = useMemo(() => ({ track, playing, volume, error, load, toggle, stop, setVolume }), [track, playing, volume, error, load, toggle, stop, setVolume]);
+
+  return <PlayerContext.Provider value={value}>
+    {children}
+    {track && <div className="fade-up fixed inset-x-0 bottom-[74px] z-30 px-3 lg:bottom-4 lg:left-auto lg:right-4 lg:w-[430px] lg:px-0" data-testid="player-sticky">
+      <div className="flex items-center gap-3 rounded-[14px] border border-line bg-raised/95 p-2.5 shadow-lg backdrop-blur-md">
+        {track.kind === 'audio' ? <>
+          <audio ref={audioRef} src={track.src} onEnded={() => setPlaying(false)} onError={() => setError('That audio link would not load.')} />
+          <button type="button" onClick={toggle} className="press grid size-10 shrink-0 place-items-center rounded-full bg-flame text-ink" aria-label={playing ? 'Pause' : 'Play'} data-testid="button-player-toggle">{playing ? <Pause className="size-4" fill="currentColor" /> : <Play className="size-4" fill="currentColor" />}</button>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[12px] font-semibold text-cream" data-testid="text-player-title">{track.title}</div>
+            <div className="mt-1 flex items-center gap-2"><Volume2 className="size-3.5 text-[#a49b8a]" /><input aria-label="Volume" type="range" min={0} max={1} step={0.01} value={volume} onChange={(event) => setVolume(Number(event.target.value))} className="h-1 w-full accent-[var(--flame)]" data-testid="input-player-volume" /></div>
+          </div>
+        </> : <div className="min-w-0 flex-1">
+          <div className="mb-1 truncate text-[11px] font-semibold text-cream">{track.title}</div>
+          <iframe title={track.title} src={track.src} allow="autoplay; encrypted-media; clipboard-write; picture-in-picture" className="h-[80px] w-full rounded-[10px] border-0" data-testid="frame-player-embed" />
+        </div>}
+        <button type="button" onClick={stop} className="press grid size-8 shrink-0 place-items-center rounded-full border border-line text-[#a49b8a] hover:text-cream" aria-label="Close the player" data-testid="button-player-close"><X className="size-4" /></button>
+      </div>
+    </div>}
+  </PlayerContext.Provider>;
+}
 
 function MascotMark({ className = 'size-10' }: { className?: string }) {
   return (
@@ -330,7 +522,7 @@ function AppShell({ title, view, onView, children, onReset }: { title: string; v
           <div className="flex items-center gap-3 lg:hidden"><button type="button" onClick={navigateHome} data-testid="button-mobile-brand"><Wordmark compact /></button></div>
           <div className="hidden lg:block"><div className="eyebrow text-[#796f62]">Tuesday · 14 October 2025</div><h1 className="mt-2 font-display text-2xl font-semibold tracking-[-.05em]">{title}</h1></div>
           <div className="ml-auto flex items-center gap-2">
-            <span className="hidden rounded-full border border-teal/30 bg-teal/10 px-3 py-1.5 font-mono text-[9px] uppercase tracking-wider text-teal sm:inline-flex">Preview mode</span>
+            <ThemeSwitch compact />
             <button type="button" onClick={() => setHelpOpen((open) => !open)} className="grid size-9 place-items-center rounded-full border border-line bg-[#29241f] text-[#aaa193] hover:text-cream" aria-label="Show preview note" data-testid="button-header-help"><CircleHelp className="size-4" /></button>
             <button type="button" onClick={() => setMenuOpen((open) => !open)} className="grid size-9 place-items-center rounded-full border border-line bg-[#29241f] text-flame hover:bg-[#332d26]" aria-label="Open preview menu" data-testid="button-header-menu"><Menu className="size-4" /></button>
           </div>
@@ -717,6 +909,13 @@ function DashboardPreview() {
       }
     }
   };
+  const awardXp = useCallback((amount: number) => {
+    setXp((current) => {
+      const next = Math.max(0, current + amount);
+      void saveProgress({ xp: next }).catch(() => undefined);
+      return next;
+    });
+  }, []);
   const addTask = async (title: string) => {
     if (!title.trim()) return;
     try {
@@ -756,7 +955,7 @@ function DashboardPreview() {
   return <AppShell title={title} view={view} onView={setView} onReset={reset}>
     <AuthPanel user={user} open={authOpen} onOpenChange={setAuthOpen} onAuthed={hydrate} onLogout={logout} />
     {error && <div className="mb-4 rounded-[12px] border border-coral/30 bg-coral/10 px-4 py-3 text-xs text-[#f2b3a8]" role="alert">{error}</div>}
-    {loading ? <DashboardLoading /> : view === 'dashboard' ? <Overview tasks={tasks} events={events} done={done} xp={xp} streak={streak} name={displayName} avatarUrl={profile?.avatar_url} onToggle={(id) => void toggleTask(id)} onView={setView} /> : view === 'tasks' ? <TasksView tasks={tasks} onToggle={(id) => void toggleTask(id)} onAdd={(value) => void addTask(value)} showComposer={showComposer} setShowComposer={setShowComposer} /> : view === 'calendar' ? <CalendarView events={events} onAdd={(event) => setEvents((current) => [...current, event])} /> : view === 'leaderboard' ? <LeaderboardView entries={leaderboard} loading={leaderboardLoading} error={leaderboardError} onRetry={() => void loadLeaderboard()} /> : <FocusView />}
+    {loading ? <DashboardLoading /> : view === 'dashboard' ? <Overview tasks={tasks} events={events} done={done} xp={xp} streak={streak} name={displayName} avatarUrl={profile?.avatar_url} onToggle={(id) => void toggleTask(id)} onView={setView} /> : view === 'tasks' ? <TasksView tasks={tasks} onToggle={(id) => void toggleTask(id)} onAdd={(value) => void addTask(value)} showComposer={showComposer} setShowComposer={setShowComposer} /> : view === 'calendar' ? <CalendarView events={events} onAdd={(event) => setEvents((current) => [...current, event])} /> : view === 'leaderboard' ? <LeaderboardView entries={leaderboard} loading={leaderboardLoading} error={leaderboardError} onRetry={() => void loadLeaderboard()} /> : view === 'profile' ? <ProfileView name={displayName} email={user?.email ?? ''} avatarUrl={profile?.avatar_url} xp={xp} streak={streak} tasksTotal={tasks.length} tasksDone={done} onLogout={() => void logout()} /> : <FocusView onSessionComplete={awardXp} />}
   </AppShell>;
 }
 
@@ -886,13 +1085,141 @@ function CalendarView({ events, onAdd }: { events: HabitEvent[]; onAdd: (event: 
   </div>;
 }
 
-function FocusView() {
+function FocusView({ onSessionComplete }: { onSessionComplete: (xp: number) => void }) {
+  const SESSION = 25 * 60;
+  const SESSION_XP = 25;
   const [running, setRunning] = useState(false);
-  const [seconds, setSeconds] = useState(25 * 60);
-  useEffect(() => { if (!running) return; const timer = window.setInterval(() => setSeconds((value) => value > 0 ? value - 1 : 25 * 60), 1000); return () => window.clearInterval(timer); }, [running]);
+  const [seconds, setSeconds] = useState(SESSION);
+  const [sessions, setSessions] = useState(0);
+  const [earned, setEarned] = useState(0);
+  const [link, setLink] = useState('');
+  const { load, error, track, playing, toggle, stop } = usePlayer();
+
+  useEffect(() => {
+    if (!running) return;
+    const timer = window.setInterval(() => setSeconds((value) => {
+      if (value > 1) return value - 1;
+      window.setTimeout(() => {
+        setRunning(false);
+        setSessions((count) => count + 1);
+        setEarned((total) => total + SESSION_XP);
+        onSessionComplete(SESSION_XP);
+      }, 0);
+      return SESSION;
+    }), 1000);
+    return () => window.clearInterval(timer);
+  }, [running, onSessionComplete]);
+
   const minutes = String(Math.floor(seconds / 60)).padStart(2, '0');
   const remaining = String(seconds % 60).padStart(2, '0');
-  return <div className="max-w-[780px] space-y-4" data-testid="view-focus"><div><div className="eyebrow text-sky">Protect the next hour</div><h2 className="mt-2 font-display text-3xl font-semibold tracking-[-.06em]">Focus room</h2><p className="mt-2 text-sm text-[#9f9688]">No optimization required. Just a little less noise.</p></div><section className="relative overflow-hidden rounded-[20px] border border-line bg-[#252d2b] p-8 sm:p-12"><div className="absolute -right-16 -top-20 size-64 rounded-full border border-teal/20" /><div className="absolute -bottom-32 -left-10 size-72 rounded-full border border-sky/10" /><div className="relative text-center"><div className="mx-auto grid size-16 place-items-center rounded-[17px] bg-teal/15 text-teal"><Music2 className="size-7" /></div><div className="eyebrow mt-7 text-[#9dbbb0]">Quiet room · 25 minute session</div><div className="mt-5 font-mono text-[clamp(4rem,13vw,7rem)] leading-none tracking-[-.08em] text-cream" data-testid="text-focus-timer">{minutes}:{remaining}</div><div className="mt-4 text-sm text-[#a9bdb3]">A good place to put one thing down.</div><button type="button" onClick={() => setRunning(!running)} className="press mt-8 rounded-[11px] bg-flame px-6 py-3 text-sm font-semibold text-ink" data-testid="button-toggle-focus">{running ? 'Pause the room' : 'Start a focus session'}</button><button type="button" onClick={() => { setRunning(false); setSeconds(25 * 60); }} className="ml-3 rounded-[11px] border border-[#536760] px-4 py-3 text-sm text-[#b5c8be] hover:bg-[#33433e]" data-testid="button-reset-focus">Reset</button></div></section><div className="grid gap-3 sm:grid-cols-3"><div className="rounded-[14px] border border-line bg-surface p-4"><div className="font-mono text-[9px] uppercase text-[#82796d]">Sound</div><div className="mt-2 flex items-center gap-2 text-sm"><Music2 className="size-4 text-teal" /> Gentle rain</div></div><div className="rounded-[14px] border border-line bg-surface p-4"><div className="font-mono text-[9px] uppercase text-[#82796d]">Sessions</div><div className="mt-2 text-sm">03 this week</div></div><div className="rounded-[14px] border border-line bg-surface p-4"><div className="font-mono text-[9px] uppercase text-[#82796d]">Earned</div><div className="mt-2 text-sm text-flame">+75 XP</div></div></div></div>;
+
+  return <div className="max-w-[780px] space-y-4 pb-28 lg:pb-4" data-testid="view-focus">
+    <div><div className="eyebrow text-sky">Protect the next hour</div><h2 className="mt-2 font-display text-3xl font-semibold tracking-[-.06em]">Focus room</h2><p className="mt-2 text-sm text-[#9f9688]">No optimization required. Just a little less noise.</p></div>
+    <section className="relative overflow-hidden rounded-[20px] border border-line bg-[#252d2b] p-8 sm:p-12">
+      <div className="absolute -right-16 -top-20 size-64 rounded-full border border-teal/20" />
+      <div className="absolute -bottom-32 -left-10 size-72 rounded-full border border-sky/10" />
+      <div className="relative text-center">
+        <div className="mx-auto grid size-16 place-items-center rounded-[17px] bg-teal/15 text-teal"><Music2 className="size-7" /></div>
+        <div className="eyebrow mt-7 text-[#9dbbb0]">Quiet room · 25 minute session</div>
+        <div className="mt-5 font-mono text-[clamp(4rem,13vw,7rem)] leading-none tracking-[-.08em] text-cream" data-testid="text-focus-timer">{minutes}:{remaining}</div>
+        <div className="mt-4 text-sm text-[#a9bdb3]">A good place to put one thing down.</div>
+        <button type="button" onClick={() => setRunning(!running)} className="press mt-8 rounded-[11px] bg-flame px-6 py-3 text-sm font-semibold text-ink" data-testid="button-toggle-focus">{running ? 'Pause the room' : 'Start a focus session'}</button>
+        <button type="button" onClick={() => { setRunning(false); setSeconds(SESSION); }} className="ml-3 rounded-[11px] border border-[#536760] px-4 py-3 text-sm text-[#b5c8be] hover:bg-[#33433e]" data-testid="button-reset-focus">Reset</button>
+      </div>
+    </section>
+
+    <section className="rounded-[16px] border border-line bg-surface p-4 sm:p-5" data-testid="card-music">
+      <div className="flex items-center gap-2"><Music2 className="size-4 text-teal" /><h3 className="font-display text-sm font-semibold">Bring your own sound</h3></div>
+      <p className="mt-2 text-[12px] leading-5 text-[#9f9688]">Paste a YouTube Music, Spotify, or direct audio link. It keeps playing while you move between tabs.</p>
+      <form className="mt-3 flex flex-col gap-2 sm:flex-row" onSubmit={(event) => { event.preventDefault(); if (load(link)) setLink(''); }}>
+        <input value={link} onChange={(event) => setLink(event.target.value)} placeholder="https://open.spotify.com/… or https://music.youtube.com/…" className="min-w-0 flex-1 rounded-[10px] border border-line bg-[#2a241f] px-3 py-2.5 text-sm text-cream outline-none focus:border-flame" data-testid="input-music-link" />
+        <button type="submit" className="press rounded-[10px] bg-teal px-4 py-2.5 text-xs font-semibold text-ink" data-testid="button-music-play">Play it</button>
+      </form>
+      {error && <p className="mt-2 text-xs text-coral" role="alert">{error}</p>}
+      {track && <div className="mt-3 flex flex-wrap items-center gap-2 text-[12px] text-[#a49b8a]">
+        <span className="truncate">Now playing · {track.title}</span>
+        {track.kind === 'audio' && <button type="button" onClick={toggle} className="press rounded-[9px] border border-line px-3 py-1.5 text-[11px] text-cream" data-testid="button-music-toggle">{playing ? 'Pause' : 'Play'}</button>}
+        <button type="button" onClick={stop} className="press rounded-[9px] border border-line px-3 py-1.5 text-[11px] text-cream" data-testid="button-music-stop">Stop</button>
+      </div>}
+    </section>
+
+    <div className="grid gap-3 sm:grid-cols-3">
+      <div className="rounded-[14px] border border-line bg-surface p-4"><div className="font-mono text-[9px] uppercase text-[#82796d]">Sound</div><div className="mt-2 flex items-center gap-2 truncate text-sm"><Music2 className="size-4 text-teal" /> {track ? track.title : 'Nothing playing yet'}</div></div>
+      <div className="rounded-[14px] border border-line bg-surface p-4"><div className="font-mono text-[9px] uppercase text-[#82796d]">Sessions</div><div className="mt-2 text-sm" data-testid="text-focus-sessions">{String(sessions).padStart(2, '0')} this week</div></div>
+      <div className="rounded-[14px] border border-line bg-surface p-4"><div className="font-mono text-[9px] uppercase text-[#82796d]">Earned</div><div className="mt-2 text-sm text-flame" data-testid="text-focus-earned">+{earned} XP</div></div>
+    </div>
+  </div>;
+}
+
+function ProfileView({ name, email, avatarUrl, xp, streak, tasksTotal, tasksDone, onLogout }: {
+  name: string;
+  email: string;
+  avatarUrl?: string | null | undefined;
+  xp: number;
+  streak: number;
+  tasksTotal: number;
+  tasksDone: number;
+  onLogout: () => void;
+}) {
+  const level = Math.floor(Math.max(0, xp) / XP_PER_LEVEL) + 1;
+  const [pushState, setPushState] = useState<string>('');
+  const [pushBusy, setPushBusy] = useState(false);
+
+  const enableReminders = async () => {
+    setPushBusy(true);
+    setPushState('');
+    try {
+      const { enablePush } = await import('@/lib/push');
+      const result = await enablePush();
+      if (result.status === 'registered') setPushState('Reminders are on for this device, even when Habitot is closed.');
+      else if (result.status === 'open-in-new-tab') setPushState('Open Habitot in its own browser tab (not this small preview window) and try again.');
+      else if (result.status === 'denied') setPushState('Your browser is blocking notifications. Allow them for this site in your browser settings.');
+      else if (result.status === 'unsupported') setPushState('This device or browser cannot receive reminders.');
+      else setPushState('Reminders are not set up yet on this app.');
+    } catch (error) {
+      setPushState(error instanceof Error ? error.message : 'Unable to turn on reminders.');
+    } finally {
+      setPushBusy(false);
+    }
+  };
+
+  return <div className="max-w-[820px] space-y-4 pb-28 lg:pb-4" data-testid="view-profile">
+    <div><div className="eyebrow text-flame">Yours alone</div><h2 className="mt-2 font-display text-3xl font-semibold tracking-[-.06em]">Profile</h2><p className="mt-2 text-sm text-[#9f9688]">Who you are here, and how Habitot should feel.</p></div>
+
+    <section className="rounded-[16px] border border-line bg-surface p-5" data-testid="card-profile-summary">
+      <div className="flex flex-wrap items-center gap-4">
+        <ProfileAvatar avatarUrl={avatarUrl} name={name} />
+        <div className="min-w-0">
+          <div className="font-display text-xl font-semibold tracking-[-.04em]" data-testid="text-profile-display-name">{name}</div>
+          <div className="mt-1 truncate text-[12px] text-[#a49b8a]">{email}</div>
+        </div>
+        <Link href="/onboarding" className="press ml-auto rounded-[10px] border border-line px-3.5 py-2 text-xs font-semibold text-cream hover:border-flame" data-testid="link-edit-profile">Edit details</Link>
+      </div>
+      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <MiniMetric value={`L${level}`} label="Level" color="flame" />
+        <MiniMetric value={String(Math.max(0, xp))} label="Total XP" color="teal" />
+        <MiniMetric value={String(streak)} label="Day streak" color="coral" />
+        <MiniMetric value={`${tasksDone}/${tasksTotal}`} label="Tasks done" color="teal" />
+      </div>
+    </section>
+
+    <section className="rounded-[16px] border border-line bg-surface p-5" data-testid="card-appearance">
+      <h3 className="font-display text-sm font-semibold">Appearance</h3>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3"><ThemeSwitch /><span className="text-[12px] text-[#a49b8a]">Light or dark</span></div>
+        <div className="flex items-center gap-3"><AccentPicker /><span className="text-[12px] text-[#a49b8a]">Accent colour</span></div>
+      </div>
+    </section>
+
+    <section className="rounded-[16px] border border-line bg-surface p-5" data-testid="card-reminders">
+      <div className="flex items-center gap-2"><Bell className="size-4 text-flame" /><h3 className="font-display text-sm font-semibold">Reminders</h3></div>
+      <p className="mt-2 text-[12px] leading-5 text-[#9f9688]">Get a gentle nudge on your phone and laptop, even when Habitot is closed.</p>
+      <button type="button" disabled={pushBusy} onClick={() => void enableReminders()} className="press mt-3 rounded-[10px] bg-flame px-4 py-2.5 text-xs font-semibold text-ink disabled:opacity-60" data-testid="button-enable-push">{pushBusy ? 'Working…' : 'Turn on reminders'}</button>
+      {pushState && <p className="mt-3 text-xs text-[#a49b8a]" role="status">{pushState}</p>}
+    </section>
+
+    <button type="button" onClick={onLogout} className="press rounded-[10px] border border-coral/40 px-4 py-2.5 text-xs font-semibold text-coral hover:bg-coral/10" data-testid="button-profile-logout">Sign out</button>
+  </div>;
 }
 
 function ResetPasswordPage() {
@@ -957,7 +1284,7 @@ function App() {
     const timer = window.setTimeout(() => setBooting(false), 5000);
     return () => window.clearTimeout(timer);
   }, []);
-  return <QueryClientProvider client={queryClient}><TooltipProvider>{booting ? <BootScreen /> : <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><Router /></WouterRouter>}<Toaster /></TooltipProvider></QueryClientProvider>;
+  return <QueryClientProvider client={queryClient}><ThemeProvider><PlayerProvider><TooltipProvider>{booting ? <BootScreen /> : <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><Router /></WouterRouter>}<Toaster /></TooltipProvider></PlayerProvider></ThemeProvider></QueryClientProvider>;
 }
 
 export default App;

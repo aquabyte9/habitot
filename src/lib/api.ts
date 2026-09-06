@@ -200,11 +200,36 @@ export async function requestAvatarUpload(file: File) {
   return signed.signedUrl;
 }
 
+const XP_RULES: { xp: number; words: string[] }[] = [
+  { xp: 30, words: ['marathon', 'gym', 'workout', 'exercise', 'run ', 'running', 'train', 'swim', 'cycle', 'deep work', 'project', 'exam', 'interview'] },
+  { xp: 24, words: ['study', 'learn', 'practice', 'code', 'write', 'revise', 'read ', 'reading', 'course', 'homework', 'assignment'] },
+  { xp: 18, words: ['clean', 'cook', 'laundry', 'shop', 'plan', 'organise', 'organize', 'budget', 'walk', 'yoga', 'stretch'] },
+  { xp: 12, words: ['meditate', 'journal', 'breathe', 'call', 'email', 'message', 'review', 'reflect'] },
+  { xp: 6, words: ['water', 'drink', 'vitamin', 'sleep', 'rest', 'nap', 'snack', 'break'] },
+];
+
+/** Picks an XP value for a task from what the task says. */
+export function autoXpFor(title: string): number {
+  const text = ` ${title.toLowerCase().trim()} `;
+  let base = 16;
+  for (const rule of XP_RULES) {
+    if (rule.words.some((word) => text.includes(word))) {
+      base = rule.xp;
+      break;
+    }
+  }
+  const words = title.trim().split(/\s+/).length;
+  if (words >= 8) base += 6;
+  else if (words >= 5) base += 3;
+  if (/\b(\d+)\s*(hour|hr|hrs|hours)\b/.test(text)) base += 8;
+  return Math.max(4, Math.min(60, base));
+}
+
 export async function createTask(title: string) {
   const userId = await requireUserId();
   const { data, error } = await supabase
     .from('tasks')
-    .insert({ user_id: userId, title, xp: 16 })
+    .insert({ user_id: userId, title, xp: autoXpFor(title) })
     .select('*')
     .single();
   if (error) throw asError(error, 'Unable to add that task.');
