@@ -522,7 +522,7 @@ function AppShell({ title, view, onView, children, onReset }: { title: string; v
           <div className="flex items-center gap-3 lg:hidden"><button type="button" onClick={navigateHome} data-testid="button-mobile-brand"><Wordmark compact /></button></div>
           <div className="hidden lg:block"><div className="eyebrow text-[#796f62]">Tuesday · 14 October 2025</div><h1 className="mt-2 font-display text-2xl font-semibold tracking-[-.05em]">{title}</h1></div>
           <div className="ml-auto flex items-center gap-2">
-            <span className="hidden rounded-full border border-teal/30 bg-teal/10 px-3 py-1.5 font-mono text-[9px] uppercase tracking-wider text-teal sm:inline-flex">Preview mode</span>
+            <ThemeSwitch compact />
             <button type="button" onClick={() => setHelpOpen((open) => !open)} className="grid size-9 place-items-center rounded-full border border-line bg-[#29241f] text-[#aaa193] hover:text-cream" aria-label="Show preview note" data-testid="button-header-help"><CircleHelp className="size-4" /></button>
             <button type="button" onClick={() => setMenuOpen((open) => !open)} className="grid size-9 place-items-center rounded-full border border-line bg-[#29241f] text-flame hover:bg-[#332d26]" aria-label="Open preview menu" data-testid="button-header-menu"><Menu className="size-4" /></button>
           </div>
@@ -909,6 +909,13 @@ function DashboardPreview() {
       }
     }
   };
+  const awardXp = useCallback((amount: number) => {
+    setXp((current) => {
+      const next = Math.max(0, current + amount);
+      void saveProgress({ xp: next }).catch(() => undefined);
+      return next;
+    });
+  }, []);
   const addTask = async (title: string) => {
     if (!title.trim()) return;
     try {
@@ -948,7 +955,7 @@ function DashboardPreview() {
   return <AppShell title={title} view={view} onView={setView} onReset={reset}>
     <AuthPanel user={user} open={authOpen} onOpenChange={setAuthOpen} onAuthed={hydrate} onLogout={logout} />
     {error && <div className="mb-4 rounded-[12px] border border-coral/30 bg-coral/10 px-4 py-3 text-xs text-[#f2b3a8]" role="alert">{error}</div>}
-    {loading ? <DashboardLoading /> : view === 'dashboard' ? <Overview tasks={tasks} events={events} done={done} xp={xp} streak={streak} name={displayName} avatarUrl={profile?.avatar_url} onToggle={(id) => void toggleTask(id)} onView={setView} /> : view === 'tasks' ? <TasksView tasks={tasks} onToggle={(id) => void toggleTask(id)} onAdd={(value) => void addTask(value)} showComposer={showComposer} setShowComposer={setShowComposer} /> : view === 'calendar' ? <CalendarView events={events} onAdd={(event) => setEvents((current) => [...current, event])} /> : view === 'leaderboard' ? <LeaderboardView entries={leaderboard} loading={leaderboardLoading} error={leaderboardError} onRetry={() => void loadLeaderboard()} /> : <FocusView />}
+    {loading ? <DashboardLoading /> : view === 'dashboard' ? <Overview tasks={tasks} events={events} done={done} xp={xp} streak={streak} name={displayName} avatarUrl={profile?.avatar_url} onToggle={(id) => void toggleTask(id)} onView={setView} /> : view === 'tasks' ? <TasksView tasks={tasks} onToggle={(id) => void toggleTask(id)} onAdd={(value) => void addTask(value)} showComposer={showComposer} setShowComposer={setShowComposer} /> : view === 'calendar' ? <CalendarView events={events} onAdd={(event) => setEvents((current) => [...current, event])} /> : view === 'leaderboard' ? <LeaderboardView entries={leaderboard} loading={leaderboardLoading} error={leaderboardError} onRetry={() => void loadLeaderboard()} /> : view === 'profile' ? <ProfileView name={displayName} email={user?.email ?? ''} avatarUrl={profile?.avatar_url} xp={xp} streak={streak} tasksTotal={tasks.length} tasksDone={done} onLogout={() => void logout()} /> : <FocusView onSessionComplete={awardXp} />}
   </AppShell>;
 }
 
@@ -1144,6 +1151,77 @@ function FocusView({ onSessionComplete }: { onSessionComplete: (xp: number) => v
   </div>;
 }
 
+function ProfileView({ name, email, avatarUrl, xp, streak, tasksTotal, tasksDone, onLogout }: {
+  name: string;
+  email: string;
+  avatarUrl?: string | null | undefined;
+  xp: number;
+  streak: number;
+  tasksTotal: number;
+  tasksDone: number;
+  onLogout: () => void;
+}) {
+  const level = Math.floor(Math.max(0, xp) / XP_PER_LEVEL) + 1;
+  const [pushState, setPushState] = useState<string>('');
+  const [pushBusy, setPushBusy] = useState(false);
+
+  const enableReminders = async () => {
+    setPushBusy(true);
+    setPushState('');
+    try {
+      const { enablePush } = await import('@/lib/push');
+      const result = await enablePush();
+      if (result.status === 'registered') setPushState('Reminders are on for this device, even when Habitot is closed.');
+      else if (result.status === 'open-in-new-tab') setPushState('Open Habitot in its own browser tab (not this small preview window) and try again.');
+      else if (result.status === 'denied') setPushState('Your browser is blocking notifications. Allow them for this site in your browser settings.');
+      else if (result.status === 'unsupported') setPushState('This device or browser cannot receive reminders.');
+      else setPushState('Reminders are not set up yet on this app.');
+    } catch (error) {
+      setPushState(error instanceof Error ? error.message : 'Unable to turn on reminders.');
+    } finally {
+      setPushBusy(false);
+    }
+  };
+
+  return <div className="max-w-[820px] space-y-4 pb-28 lg:pb-4" data-testid="view-profile">
+    <div><div className="eyebrow text-flame">Yours alone</div><h2 className="mt-2 font-display text-3xl font-semibold tracking-[-.06em]">Profile</h2><p className="mt-2 text-sm text-[#9f9688]">Who you are here, and how Habitot should feel.</p></div>
+
+    <section className="rounded-[16px] border border-line bg-surface p-5" data-testid="card-profile-summary">
+      <div className="flex flex-wrap items-center gap-4">
+        <ProfileAvatar avatarUrl={avatarUrl} name={name} />
+        <div className="min-w-0">
+          <div className="font-display text-xl font-semibold tracking-[-.04em]" data-testid="text-profile-display-name">{name}</div>
+          <div className="mt-1 truncate text-[12px] text-[#a49b8a]">{email}</div>
+        </div>
+        <Link href="/onboarding" className="press ml-auto rounded-[10px] border border-line px-3.5 py-2 text-xs font-semibold text-cream hover:border-flame" data-testid="link-edit-profile">Edit details</Link>
+      </div>
+      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <MiniMetric value={`L${level}`} label="Level" color="flame" />
+        <MiniMetric value={String(Math.max(0, xp))} label="Total XP" color="teal" />
+        <MiniMetric value={String(streak)} label="Day streak" color="coral" />
+        <MiniMetric value={`${tasksDone}/${tasksTotal}`} label="Tasks done" color="teal" />
+      </div>
+    </section>
+
+    <section className="rounded-[16px] border border-line bg-surface p-5" data-testid="card-appearance">
+      <h3 className="font-display text-sm font-semibold">Appearance</h3>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3"><ThemeSwitch /><span className="text-[12px] text-[#a49b8a]">Light or dark</span></div>
+        <div className="flex items-center gap-3"><AccentPicker /><span className="text-[12px] text-[#a49b8a]">Accent colour</span></div>
+      </div>
+    </section>
+
+    <section className="rounded-[16px] border border-line bg-surface p-5" data-testid="card-reminders">
+      <div className="flex items-center gap-2"><Bell className="size-4 text-flame" /><h3 className="font-display text-sm font-semibold">Reminders</h3></div>
+      <p className="mt-2 text-[12px] leading-5 text-[#9f9688]">Get a gentle nudge on your phone and laptop, even when Habitot is closed.</p>
+      <button type="button" disabled={pushBusy} onClick={() => void enableReminders()} className="press mt-3 rounded-[10px] bg-flame px-4 py-2.5 text-xs font-semibold text-ink disabled:opacity-60" data-testid="button-enable-push">{pushBusy ? 'Working…' : 'Turn on reminders'}</button>
+      {pushState && <p className="mt-3 text-xs text-[#a49b8a]" role="status">{pushState}</p>}
+    </section>
+
+    <button type="button" onClick={onLogout} className="press rounded-[10px] border border-coral/40 px-4 py-2.5 text-xs font-semibold text-coral hover:bg-coral/10" data-testid="button-profile-logout">Sign out</button>
+  </div>;
+}
+
 function ResetPasswordPage() {
   const [, setLocation] = useLocation();
   const [password, setPassword] = useState('');
@@ -1206,7 +1284,7 @@ function App() {
     const timer = window.setTimeout(() => setBooting(false), 5000);
     return () => window.clearTimeout(timer);
   }, []);
-  return <QueryClientProvider client={queryClient}><TooltipProvider>{booting ? <BootScreen /> : <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><Router /></WouterRouter>}<Toaster /></TooltipProvider></QueryClientProvider>;
+  return <QueryClientProvider client={queryClient}><ThemeProvider><PlayerProvider><TooltipProvider>{booting ? <BootScreen /> : <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}><Router /></WouterRouter>}<Toaster /></TooltipProvider></PlayerProvider></ThemeProvider></QueryClientProvider>;
 }
 
 export default App;
