@@ -352,7 +352,7 @@ function NavButton({ item, active, onClick, desktop = false }: { item: (typeof n
 
 const XP_PER_LEVEL = 100;
 
-function ProfileHeader({ streak, xp, name, avatarUrl }: { streak: number; xp: number; name: string; avatarUrl?: string | null }) {
+function ProfileHeader({ streak, xp, name, avatarUrl }: { streak: number; xp: number; name: string; avatarUrl?: string | null | undefined }) {
   const safeXp = Math.max(0, xp);
   const level = Math.floor(safeXp / XP_PER_LEVEL) + 1;
   const into = safeXp % XP_PER_LEVEL;
