@@ -759,6 +759,11 @@ function DashboardPreview() {
     if (user) void hydrate(user);
   };
   const title = navItems.find((item) => item.id === view)?.label ?? 'Overview';
+  const displayName = profile?.display_name?.trim()
+    || user?.user_metadata?.full_name
+    || user?.user_metadata?.name
+    || user?.email?.split('@')[0]
+    || 'Friend';
 
   return <AppShell title={title} view={view} onView={setView} onReset={reset}>
     <AuthPanel user={user} open={authOpen} onOpenChange={setAuthOpen} onAuthed={hydrate} onLogout={logout} />
