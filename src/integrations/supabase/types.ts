@@ -14,7 +14,78 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          height_cm: number | null
+          id: string
+          life_goals: string[] | null
+          onboarded: boolean
+          streak_days: number
+          weight_kg: number | null
+          xp: number
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          height_cm?: number | null
+          id: string
+          life_goals?: string[] | null
+          onboarded?: boolean
+          streak_days?: number
+          weight_kg?: number | null
+          xp?: number
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          height_cm?: number | null
+          id?: string
+          life_goals?: string[] | null
+          onboarded?: boolean
+          streak_days?: number
+          weight_kg?: number | null
+          xp?: number
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          created_at: string
+          done: boolean
+          id: string
+          tag: string
+          time: string
+          title: string
+          user_id: string
+          xp: number
+        }
+        Insert: {
+          created_at?: string
+          done?: boolean
+          id?: string
+          tag?: string
+          time?: string
+          title: string
+          user_id: string
+          xp?: number
+        }
+        Update: {
+          created_at?: string
+          done?: boolean
+          id?: string
+          tag?: string
+          time?: string
+          title?: string
+          user_id?: string
+          xp?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
