@@ -286,3 +286,14 @@ button, a { -webkit-tap-highlight-color: transparent; }
 :root[data-theme="light"] .border-\[\#332d26\] { border-color: #e2dacb; }
 :root[data-theme="light"] .border-\[\#433b32\] { border-color: #e2dacb; }
 :root[data-theme="light"] .placeholder\:text-\[\#8f9688\]::placeholder { color: #6b6357; }
+/* Hide Lovable preview badge completely */
+#lovable-badge, 
+[data-lovable-badge], 
+.lovable-watermark,
+div[class*="lovable"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
