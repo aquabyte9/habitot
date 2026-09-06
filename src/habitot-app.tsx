@@ -357,15 +357,18 @@ function NavButton({ item, active, onClick, desktop = false }: { item: (typeof n
   return <button type="button" onClick={onClick} className={`flex ${desktop ? 'w-full flex-row gap-3 px-3 py-2.5 text-sm' : 'flex-col gap-1 px-2 py-1.5 text-[10px]'} items-center rounded-[11px] font-medium transition-colors ${active ? 'bg-flame/12 text-flame' : 'text-[#91887b] hover:bg-[#332d26] hover:text-cream'}`} aria-current={active ? 'page' : undefined} data-testid={`button-nav-${item.id}`}><Icon className={desktop ? 'size-4' : 'size-4'} /><span>{item.label}</span></button>;
 }
 
-function ProfileHeader({ streak, xp }: { streak: number; xp: number }) {
-  const level = xp > 700 ? 4 : xp > 400 ? 3 : 2;
-  const into = xp - (level === 2 ? 180 : level === 3 ? 400 : 700);
-  const goal = level === 2 ? 220 : level === 3 ? 300 : 360;
+const XP_PER_LEVEL = 100;
+
+function ProfileHeader({ streak, xp, name, avatarUrl }: { streak: number; xp: number; name: string; avatarUrl?: string | null }) {
+  const safeXp = Math.max(0, xp);
+  const level = Math.floor(safeXp / XP_PER_LEVEL) + 1;
+  const into = safeXp % XP_PER_LEVEL;
+  const goal = XP_PER_LEVEL;
   const pct = Math.max(0, Math.min(100, (into / goal) * 100));
   return <section className="rounded-[16px] border border-line bg-surface p-4 sm:p-5" data-testid="card-profile-header">
     <div className="flex flex-wrap items-center gap-3">
-      <div className="grid size-12 shrink-0 place-items-center rounded-[12px] bg-coral font-display text-xl font-semibold text-ink">M</div>
-      <div><div className="font-display text-base font-semibold">Mira Chen</div><div className="eyebrow mt-1 text-[#82796d]">Level {level} · finding momentum</div></div>
+      <ProfileAvatar avatarUrl={avatarUrl} name={name} />
+      <div><div className="font-display text-base font-semibold" data-testid="text-profile-name">{name}</div><div className="eyebrow mt-1 text-[#82796d]">Level {level} · finding momentum</div></div>
       <div className="ml-auto flex items-center gap-2 rounded-full border border-flame/25 bg-flame/10 px-3 py-2"><Flame className="size-4 text-flame" fill="currentColor" /><span className="font-display text-sm font-semibold">Current streak: {streak}</span><span className="font-mono text-[9px] uppercase text-flame/80">days</span></div>
     </div>
     <div className="mt-5"><div className="mb-2 flex items-end justify-between"><span className="eyebrow text-[#82796d]">XP to level {level + 1}</span><span className="font-mono text-[11px] text-[#b0a797]">{Math.max(0, into)} / {goal}</span></div><div className="h-2 overflow-hidden rounded-full bg-[#433b32]"><div className="xp-fill h-full rounded-full bg-flame" style={{ width: `${pct}%` }} /></div></div>
