@@ -1,3 +1,5 @@
+import { supabase } from '@/integrations/supabase/client';
+
 export type HabitUser = {
   id: string;
   email?: string;
@@ -33,51 +35,62 @@ export type HabitTask = {
   dueDate?: string;
 };
 
-type ApiError = { error?: string };
-
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
-    ...init,
-  });
-  const payload = (await response.json().catch(() => null)) as T & ApiError;
-  if (!response.ok) throw new Error(payload?.error ?? 'Something went wrong. Please try again.');
-  return payload;
+function asError(error: { message?: string } | null, fallback: string): Error {
+  return new Error(error?.message ?? fallback);
 }
 
 export async function getSession(): Promise<HabitUser | null> {
-  const response = await fetch('/api/auth/session', { credentials: 'include' });
-  if (response.status === 401) return null;
-  const payload = (await response.json().catch(() => null)) as { user?: HabitUser; error?: string };
-  if (!response.ok) throw new Error(payload?.error ?? 'Unable to check your session.');
-  return payload.user ?? null;
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) return null;
+  return data.user as HabitUser;
 }
 
 export async function signIn(email: string, password: string) {
-  return request<{ user: HabitUser }>('/api/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ email, password }),
-  });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw asError(error, 'Unable to sign in. Check your email and password.');
+  return { user: data.user as HabitUser };
 }
 
 export async function signUp(email: string, password: string, name: string) {
-  return request<{ user: HabitUser | null; needsEmailConfirmation: boolean }>('/api/auth/signup', {
-    method: 'POST',
-    body: JSON.stringify({ email, password, name }),
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { full_name: name }, emailRedirectTo: window.location.origin },
   });
+  if (error) throw asError(error, 'Unable to create your account.');
+  return { user: (data.user ?? null) as HabitUser | null, needsEmailConfirmation: !data.session };
 }
 
 export async function signOut() {
-  await request('/api/auth/logout', { method: 'POST' });
+  await supabase.auth.signOut();
+}
+
+async function requireUserId(): Promise<string> {
+  const { data } = await supabase.auth.getUser();
+  if (!data.user) throw new Error('Not signed in.');
+  return data.user.id;
 }
 
 export async function getAccount() {
-  const [profile, tasks] = await Promise.all([
-    request<HabitProfile>('/api/profile'),
-    request<HabitTask[]>('/api/tasks'),
+  const userId = await requireUserId();
+  const [profileResult, tasksResult] = await Promise.all([
+    supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
+    supabase.from('tasks').select('*').eq('user_id', userId).order('created_at', { ascending: true }),
   ]);
-  return { profile, tasks };
+  if (profileResult.error) throw asError(profileResult.error, 'Unable to load your profile.');
+  if (tasksResult.error) throw asError(tasksResult.error, 'Unable to load your tasks.');
+
+  let profile = profileResult.data as HabitProfile | null;
+  if (!profile) {
+    const { data: created, error } = await supabase
+      .from('profiles')
+      .insert({ id: userId })
+      .select('*')
+      .single();
+    if (error) throw asError(error, 'Unable to create your profile.');
+    profile = created as HabitProfile;
+  }
+  return { profile, tasks: (tasksResult.data ?? []) as HabitTask[] };
 }
 
 export async function updateProfile(input: {
@@ -88,40 +101,63 @@ export async function updateProfile(input: {
   avatarUrl?: string;
   onboarded?: boolean;
 }) {
-  return request<HabitProfile>('/api/profile', {
-    method: 'PATCH',
-    body: JSON.stringify(input),
-  });
+  const userId = await requireUserId();
+  const patch: Record<string, unknown> = {};
+  if (input.displayName !== undefined) patch.display_name = input.displayName;
+  if (input.heightCm !== undefined) patch.height_cm = input.heightCm;
+  if (input.weightKg !== undefined) patch.weight_kg = input.weightKg;
+  if (input.lifeGoals !== undefined) patch.life_goals = input.lifeGoals;
+  if (input.avatarUrl !== undefined) patch.avatar_url = input.avatarUrl;
+  if (input.onboarded !== undefined) patch.onboarded = input.onboarded;
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .upsert({ id: userId, ...patch })
+    .select('*')
+    .single();
+  if (error) throw asError(error, 'Unable to save your profile.');
+  return data as HabitProfile;
 }
 
 export async function getLeaderboard() {
-  return request<LeaderboardEntry[]>('/api/leaderboard');
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('display_name, avatar_url, xp, streak_days')
+    .order('xp', { ascending: false })
+    .limit(50);
+  if (error) throw asError(error, 'Unable to load the leaderboard.');
+  return (data ?? []) as LeaderboardEntry[];
 }
 
 export async function requestAvatarUpload(file: File) {
-  const upload = await request<{ uploadURL: string; objectPath: string }>('/api/storage/uploads/request-url', {
-    method: 'POST',
-    body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type }),
+  const userId = await requireUserId();
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
+  const path = `${userId}/${Date.now()}-${safeName}`;
+  const { error } = await supabase.storage.from('avatars').upload(path, file, {
+    contentType: file.type,
+    upsert: true,
   });
-  const response = await fetch(upload.uploadURL, {
-    method: 'PUT',
-    headers: { 'Content-Type': file.type },
-    body: file,
-  });
-  if (!response.ok) throw new Error('The profile picture upload did not finish.');
-  return upload.objectPath;
+  if (error) throw asError(error, 'The profile picture upload did not finish.');
+  const { data: signed, error: signError } = await supabase.storage
+    .from('avatars')
+    .createSignedUrl(path, 60 * 60 * 24 * 365);
+  if (signError || !signed?.signedUrl) throw asError(signError, 'Unable to read the uploaded picture.');
+  return signed.signedUrl;
 }
 
 export async function createTask(title: string) {
-  return request<HabitTask>('/api/tasks', {
-    method: 'POST',
-    body: JSON.stringify({ title, xp: 16 }),
-  });
+  const userId = await requireUserId();
+  const { data, error } = await supabase
+    .from('tasks')
+    .insert({ user_id: userId, title, xp: 16 })
+    .select('*')
+    .single();
+  if (error) throw asError(error, 'Unable to add that task.');
+  return data as HabitTask;
 }
 
 export async function updateTask(id: string, done: boolean) {
-  return request<HabitTask>(`/api/tasks/${encodeURIComponent(id)}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ done }),
-  });
+  const { data, error } = await supabase.from('tasks').update({ done }).eq('id', id).select('*').single();
+  if (error) throw asError(error, 'Unable to update that task.');
+  return data as HabitTask;
 }
