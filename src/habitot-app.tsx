@@ -715,15 +715,16 @@ function DashboardPreview() {
     const task = tasks.find((item) => item.id === id);
     if (!task) return;
     const next = !task.done;
+    const nextXp = Math.max(0, xp + (next ? task.xp : -task.xp));
     setTasks((current) => current.map((item) => item.id === id ? { ...item, done: next } : item));
-    setXp((value) => Math.max(0, value + (next ? task.xp : -task.xp)));
-    if (next) setStreak((value) => value + 1);
+    setXp(nextXp);
     if (user) {
       try {
         await updateTask(id, next);
+        await saveProgress({ xp: nextXp });
       } catch (updateError) {
         setTasks((current) => current.map((item) => item.id === id ? { ...item, done: task.done } : item));
-        setXp((value) => Math.max(0, value + (next ? -task.xp : task.xp)));
+        setXp(xp);
         setError(updateError instanceof Error ? updateError.message : 'Unable to save that change.');
       }
     }
