@@ -16,6 +16,7 @@ export type HabitProfile = {
   life_goals?: string[] | null;
   avatar_url?: string | null;
   onboarded?: boolean | null;
+  last_active_on?: string | null;
 };
 
 export type LeaderboardEntry = {
