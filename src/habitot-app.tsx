@@ -866,7 +866,20 @@ function TasksView({ tasks, onToggle, onAdd, showComposer, setShowComposer }: { 
 function CalendarView({ events, onAdd }: { events: HabitEvent[]; onAdd: (event: HabitEvent) => void }) {
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState('');
-  const submit = () => { if (!title.trim()) return; onAdd({ id: `event-${Date.now()}`, day: 'THU', date: '16', title: title.trim(), time: '16:30', tone: 'teal' }); setTitle(''); setAdding(false); };
+  const submit = () => {
+    if (!title.trim()) return;
+    const now = new Date();
+    onAdd({
+      id: `event-${Date.now()}`,
+      day: now.toLocaleDateString(undefined, { weekday: 'short' }).toUpperCase(),
+      date: String(now.getDate()),
+      title: title.trim(),
+      time: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
+      tone: 'teal',
+    });
+    setTitle('');
+    setAdding(false);
+  };
   return <div className="space-y-4" data-testid="view-calendar"><div className="flex items-end justify-between"><div><div className="eyebrow text-teal">Make space for it</div><h2 className="mt-2 font-display text-3xl font-semibold tracking-[-.06em]">October, in view</h2><p className="mt-2 text-sm text-[#9f9688]">Your days, with enough breathing room.</p></div><button type="button" onClick={() => setAdding(!adding)} className="press inline-flex items-center gap-2 rounded-[11px] bg-teal px-3.5 py-2.5 text-xs font-semibold text-ink" data-testid="button-add-event"><Plus className="size-4" /> Add event</button></div>
     {adding && <div className="flex max-w-[600px] gap-2 rounded-[14px] border border-teal/30 bg-teal/10 p-3"><input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') submit(); }} placeholder="Name this moment" className="min-w-0 flex-1 bg-transparent px-2 text-sm outline-none placeholder:text-[#8f9688]" data-testid="input-new-event" /><button type="button" onClick={submit} className="rounded-[9px] bg-teal px-3 py-2 text-xs font-semibold text-ink" data-testid="button-save-event">Add</button></div>}
     <div className="grid gap-4 lg:grid-cols-[1.1fr_.9fr]"><section className="rounded-[16px] border border-line bg-surface p-4 sm:p-5"><div className="grid grid-cols-7 gap-1 text-center font-mono text-[9px] uppercase text-[#82796d]">{['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day) => <div key={day} className="py-2">{day}</div>)}{Array.from({ length: 28 }, (_, i) => <div key={i} className={`grid aspect-square place-items-center rounded-[8px] text-xs ${i === 13 ? 'bg-flame font-semibold text-ink' : [14, 15, 16].includes(i) ? 'bg-[#332d26] text-cream' : 'text-[#82796d] hover:bg-[#332d26]'}`}>{i + 1}</div>)}</div></section><section className="rounded-[16px] border border-line bg-surface p-4 sm:p-5"><div className="mb-3 flex items-center gap-2"><span className="size-2 rounded-full bg-teal" /><h3 className="font-display text-sm font-semibold">This week</h3></div>{events.length ? events.map((event, index) => <EventRow key={event.id} event={event} last={index === events.length - 1} />) : <EmptyState icon={<CalendarDays className="size-5" />} title="Open calendar" copy="Your next plan can live here." action="Add an event" onClick={() => setAdding(true)} />}</section></div>
