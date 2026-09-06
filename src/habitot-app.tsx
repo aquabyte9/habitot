@@ -109,7 +109,7 @@ function ProfileAvatar({ avatarUrl, name = 'M', size = 'size-12' }: { avatarUrl?
   return <div className={`grid ${size} shrink-0 place-items-center rounded-[12px] font-display text-xl font-semibold ${preset?.tone ?? 'bg-coral text-ink'}`}>{preset?.symbol ?? name.slice(0, 1).toUpperCase()}</div>;
 }
 
-function PublicIcon({ avatarUrl, size = 'size-11' }: { avatarUrl?: string | null; size?: string }) {
+function PublicIcon({ avatarUrl, size = 'size-11' }: { avatarUrl?: string | null | undefined; size?: string }) {
   const iconClass = 'size-5';
   const isLeaf = avatarUrl === 'builtin:leaf';
   const isMoon = avatarUrl === 'builtin:moon';
