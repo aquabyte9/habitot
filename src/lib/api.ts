@@ -16,6 +16,7 @@ export type HabitProfile = {
   life_goals?: string[] | null;
   avatar_url?: string | null;
   onboarded?: boolean | null;
+  last_active_on?: string | null;
 };
 
 export type LeaderboardEntry = {
@@ -63,6 +64,60 @@ export async function signUp(email: string, password: string, name: string) {
 
 export async function signOut() {
   await supabase.auth.signOut();
+}
+
+export async function signInWithGoogle() {
+  const { lovable } = await import('@/integrations/lovable/index');
+  const result = await lovable.auth.signInWithOAuth('google', {
+    redirect_uri: window.location.origin,
+  });
+  if (result.error) throw new Error(result.error.message ?? 'Unable to sign in with Google.');
+  return result;
+}
+
+export async function requestPasswordReset(email: string) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/reset-password`,
+  });
+  if (error) throw asError(error, 'Unable to send the reset email.');
+}
+
+export async function setNewPassword(password: string) {
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) throw asError(error, 'Unable to update your password.');
+}
+
+function todayKey() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+function daysBetween(from: string, to: string) {
+  const a = new Date(`${from}T00:00:00`);
+  const b = new Date(`${to}T00:00:00`);
+  return Math.round((b.getTime() - a.getTime()) / 86400000);
+}
+
+/** Streak rules: first visit = 1, next-day visit = +1, a missed day resets to 1. */
+export function nextStreak(profile: HabitProfile | null): { streak: number; today: string } {
+  const today = todayKey();
+  const last = profile?.last_active_on ?? null;
+  const current = Math.max(1, Number(profile?.streak_days ?? 0) || 0);
+  if (!last) return { streak: 1, today };
+  const gap = daysBetween(last, today);
+  if (gap <= 0) return { streak: current, today };
+  if (gap === 1) return { streak: current + 1, today };
+  return { streak: 1, today };
+}
+
+export async function saveProgress(input: { xp?: number; streakDays?: number; lastActiveOn?: string }) {
+  const userId = await requireUserId();
+  const patch: Record<string, unknown> = {};
+  if (input.xp !== undefined) patch['xp'] = input.xp;
+  if (input.streakDays !== undefined) patch['streak_days'] = input.streakDays;
+  if (input.lastActiveOn !== undefined) patch['last_active_on'] = input.lastActiveOn;
+  const { error } = await supabase.from('profiles').upsert({ id: userId, ...patch });
+  if (error) throw asError(error, 'Unable to save your progress.');
 }
 
 async function requireUserId(): Promise<string> {

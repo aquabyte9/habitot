@@ -10,6 +10,11 @@ import {
   getLeaderboard,
   getSession,
   requestAvatarUpload,
+  requestPasswordReset,
+  setNewPassword,
+  signInWithGoogle,
+  nextStreak,
+  saveProgress,
   signIn,
   signOut,
   signUp,
@@ -51,18 +56,6 @@ const queryClient = new QueryClient();
 type View = 'dashboard' | 'tasks' | 'calendar' | 'focus' | 'leaderboard';
 type HabitEvent = { id: string; day: string; date: string; title: string; time: string; tone: 'teal' | 'coral' | 'sky' };
 
-const initialTasks: HabitTask[] = [
-  { id: 'water', title: 'Drink a glass of water', tag: 'Body', time: '07:30', xp: 12, done: true },
-  { id: 'walk', title: 'Walk around the block', tag: 'Reset', time: '12:15', xp: 20, done: false },
-  { id: 'journal', title: 'Write three honest lines', tag: 'Mind', time: '18:30', xp: 18, done: false },
-  { id: 'phone', title: 'Leave the phone outside the bedroom', tag: 'Evening', time: '22:00', xp: 24, done: false },
-];
-
-const initialEvents: HabitEvent[] = [
-  { id: 'standup', day: 'TODAY', date: '14', title: 'Product stand-up', time: '09:30', tone: 'teal' },
-  { id: 'lunch', day: 'TODAY', date: '14', title: 'Lunch with Sam', time: '12:45', tone: 'coral' },
-  { id: 'swim', day: 'WED', date: '15', title: 'Evening swim', time: '18:00', tone: 'sky' },
-];
 
 const navItems: { id: View; label: string; icon: typeof LayoutGrid }[] = [
   { id: 'dashboard', label: 'Overview', icon: LayoutGrid },
@@ -101,7 +94,7 @@ const avatarPresets = [
   { id: 'sun', label: 'Sun', symbol: '☼', tone: 'bg-coral text-ink' },
 ];
 
-function ProfileAvatar({ avatarUrl, name = 'M', size = 'size-12' }: { avatarUrl?: string | null; name?: string; size?: string }) {
+function ProfileAvatar({ avatarUrl, name = 'M', size = 'size-12' }: { avatarUrl?: string | null | undefined; name?: string; size?: string }) {
   if (avatarUrl?.startsWith('/api/storage/objects/') || avatarUrl?.startsWith('http')) {
     return <img src={avatarUrl} alt="" className={`${size} rounded-[12px] object-cover`} />;
   }
@@ -345,8 +338,8 @@ function AppShell({ title, view, onView, children, onReset }: { title: string; v
         {helpOpen && <div className="mx-auto mt-3 max-w-[1110px] px-5 sm:px-8 lg:px-10"><div className="flex items-start justify-between rounded-[12px] border border-teal/25 bg-teal/10 px-4 py-3 text-[12px] leading-5 text-[#b9cfc2]">This is an interactive sample. Check off a task or switch sections; your changes live only in this preview.<button type="button" onClick={() => setHelpOpen(false)} className="ml-4 text-teal" aria-label="Dismiss preview note" data-testid="button-dismiss-help"><X className="size-4" /></button></div></div>}
         <main className="mx-auto max-w-[1110px] px-5 pt-5 sm:px-8 lg:px-10 lg:pt-7">{children}</main>
       </div>
-      <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-[#25211d]/95 px-2 pb-[max(.45rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md lg:hidden" aria-label="Mobile navigation">
-        <div className="mx-auto grid max-w-md grid-cols-4 gap-1">{navItems.map((item) => <NavButton key={item.id} item={item} active={view === item.id} onClick={() => onView(item.id)} />)}</div>
+      <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-[#25211d]/95 pb-[max(.45rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md lg:hidden" aria-label="Mobile navigation">
+        <div className="nav-scroll flex snap-x snap-mandatory gap-1 overflow-x-auto px-3">{navItems.map((item) => <div key={item.id} className="w-[22%] min-w-[76px] shrink-0 snap-start"><NavButton item={item} active={view === item.id} onClick={() => onView(item.id)} /></div>)}</div>
       </nav>
     </div>
   );
@@ -354,26 +347,38 @@ function AppShell({ title, view, onView, children, onReset }: { title: string; v
 
 function NavButton({ item, active, onClick, desktop = false }: { item: (typeof navItems)[number]; active: boolean; onClick: () => void; desktop?: boolean }) {
   const Icon = item.icon;
-  return <button type="button" onClick={onClick} className={`flex ${desktop ? 'w-full flex-row gap-3 px-3 py-2.5 text-sm' : 'flex-col gap-1 px-2 py-1.5 text-[10px]'} items-center rounded-[11px] font-medium transition-colors ${active ? 'bg-flame/12 text-flame' : 'text-[#91887b] hover:bg-[#332d26] hover:text-cream'}`} aria-current={active ? 'page' : undefined} data-testid={`button-nav-${item.id}`}><Icon className={desktop ? 'size-4' : 'size-4'} /><span>{item.label}</span></button>;
+  return <button type="button" onClick={onClick} className={`press flex ${desktop ? 'w-full flex-row gap-3 px-3 py-2.5 text-sm' : 'w-full flex-col justify-center gap-1 px-2 py-1.5 text-[10px]'} items-center rounded-[11px] font-medium transition-colors ${active ? 'bg-flame/12 text-flame' : 'text-[#91887b] hover:bg-[#332d26] hover:text-cream'}`} aria-current={active ? 'page' : undefined} data-testid={`button-nav-${item.id}`}><Icon className={`size-4 ${active ? 'nav-pop' : ''}`} /><span className="whitespace-nowrap">{item.label}</span></button>;
 }
 
-function ProfileHeader({ streak, xp }: { streak: number; xp: number }) {
-  const level = xp > 700 ? 4 : xp > 400 ? 3 : 2;
-  const into = xp - (level === 2 ? 180 : level === 3 ? 400 : 700);
-  const goal = level === 2 ? 220 : level === 3 ? 300 : 360;
+const XP_PER_LEVEL = 100;
+
+function ProfileHeader({ streak, xp, name, avatarUrl }: { streak: number; xp: number; name: string; avatarUrl?: string | null | undefined }) {
+  const safeXp = Math.max(0, xp);
+  const level = Math.floor(safeXp / XP_PER_LEVEL) + 1;
+  const into = safeXp % XP_PER_LEVEL;
+  const goal = XP_PER_LEVEL;
   const pct = Math.max(0, Math.min(100, (into / goal) * 100));
   return <section className="rounded-[16px] border border-line bg-surface p-4 sm:p-5" data-testid="card-profile-header">
     <div className="flex flex-wrap items-center gap-3">
-      <div className="grid size-12 shrink-0 place-items-center rounded-[12px] bg-coral font-display text-xl font-semibold text-ink">M</div>
-      <div><div className="font-display text-base font-semibold">Mira Chen</div><div className="eyebrow mt-1 text-[#82796d]">Level {level} · finding momentum</div></div>
-      <div className="ml-auto flex items-center gap-2 rounded-full border border-flame/25 bg-flame/10 px-3 py-2"><Flame className="size-4 text-flame" fill="currentColor" /><span className="font-display text-sm font-semibold">Current streak: {streak}</span><span className="font-mono text-[9px] uppercase text-flame/80">days</span></div>
+      <ProfileAvatar avatarUrl={avatarUrl} name={name} />
+      <div><div className="font-display text-base font-semibold" data-testid="text-profile-name">{name}</div><div className="eyebrow mt-1 text-[#82796d]">Level {level} · finding momentum</div></div>
+      <div className="streak-pill ml-auto flex items-center gap-2 rounded-full border border-flame/25 bg-flame/10 px-3 py-2" key={streak}><Flame className="size-4 text-flame" fill="currentColor" /><span className="font-display text-sm font-semibold">Current streak: {streak}</span><span className="font-mono text-[9px] uppercase text-flame/80">days</span></div>
     </div>
-    <div className="mt-5"><div className="mb-2 flex items-end justify-between"><span className="eyebrow text-[#82796d]">XP to level {level + 1}</span><span className="font-mono text-[11px] text-[#b0a797]">{Math.max(0, into)} / {goal}</span></div><div className="h-2 overflow-hidden rounded-full bg-[#433b32]"><div className="xp-fill h-full rounded-full bg-flame" style={{ width: `${pct}%` }} /></div></div>
+    <div className="mt-5"><div className="mb-2 flex items-end justify-between"><span className="eyebrow text-[#82796d]">XP to level {level + 1}</span><span className="font-mono text-[11px] text-[#b0a797]" data-testid="text-xp-progress">{Math.max(0, into)} / {goal}</span></div><div className="h-2.5 overflow-hidden rounded-full bg-[#433b32]"><div className="xp-bar-glow h-full rounded-full bg-flame transition-[width] duration-700 ease-out" style={{ width: `${pct}%` }} data-testid="bar-xp" /></div></div>
   </section>;
 }
 
 function DashboardLoading() {
   return <div className="space-y-4" data-testid="status-dashboard-loading"><div className="skeleton h-28 rounded-[16px]" /><div className="grid grid-cols-3 gap-3"><div className="skeleton h-20 rounded-[14px]" /><div className="skeleton h-20 rounded-[14px]" /><div className="skeleton h-20 rounded-[14px]" /></div><div className="grid gap-3 lg:grid-cols-2"><div className="skeleton h-64 rounded-[16px]" /><div className="skeleton h-64 rounded-[16px]" /></div></div>;
+}
+
+function GoogleGlyph() {
+  return <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
+    <path fill="#EA4335" d="M12 10.2v3.9h5.5a4.7 4.7 0 0 1-2 3.1l3.2 2.5c1.9-1.7 3-4.3 3-7.3 0-.7-.1-1.4-.2-2H12Z" />
+    <path fill="#34A853" d="M6.6 14.3 5.9 15l-2.6 2A9 9 0 0 0 12 21c2.4 0 4.5-.8 6-2.2l-3.2-2.5c-.8.6-1.9.9-2.8.9-2.4 0-4.4-1.6-5.1-3.8Z" />
+    <path fill="#FBBC05" d="M3.3 7A9 9 0 0 0 3 12c0 1.5.4 2.9 1 4.1l3.3-2.6a5.4 5.4 0 0 1 0-3.4L3.3 7Z" />
+    <path fill="#4285F4" d="M12 6.6c1.4 0 2.6.5 3.5 1.4l2.6-2.6A9 9 0 0 0 3.3 7l3.3 2.6C7.3 8 9.4 6.6 12 6.6Z" />
+  </svg>;
 }
 
 function AuthPanel({
@@ -429,6 +434,37 @@ function AuthPanel({
     }
   };
 
+  const google = async () => {
+    setBusy(true);
+    setMessage('');
+    try {
+      const result = await signInWithGoogle();
+      if (result.redirected) return;
+      const session = await getSession();
+      if (session) await onAuthed(session);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to sign in with Google.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const forgot = async () => {
+    if (!email.trim()) {
+      setMessage('Type your email address first, then tap this again.');
+      return;
+    }
+    setBusy(true);
+    try {
+      await requestPasswordReset(email.trim());
+      setMessage('Password reset link sent. Check your email.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to send the reset email.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return <div className="mb-4 rounded-[14px] border border-flame/25 bg-flame/10 p-4" data-testid="panel-auth">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div><div className="eyebrow text-flame">{open ? (mode === 'login' ? 'Welcome back' : 'Make it yours') : 'Free preview'}</div><p className="mt-1 text-[12px] text-[#b9aa96]">{open ? 'Save your tasks and return to them on any device.' : 'This sample is local. Sign in to make your tasks persistent.'}</p></div>
@@ -440,8 +476,13 @@ function AuthPanel({
         {mode === 'signup' && <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name" autoComplete="name" className="rounded-[9px] border border-line bg-[#2a241f] px-3 py-2 text-sm text-cream outline-none focus:border-flame" data-testid="input-auth-name" />}
         <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email address" type="email" required autoComplete="email" className="rounded-[9px] border border-line bg-[#2a241f] px-3 py-2 text-sm text-cream outline-none focus:border-flame" data-testid="input-auth-email" />
         <input value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password (8+ characters)" type="password" required minLength={8} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} className="rounded-[9px] border border-line bg-[#2a241f] px-3 py-2 text-sm text-cream outline-none focus:border-flame" data-testid="input-auth-password" />
-        <button type="submit" disabled={busy} className="rounded-[9px] bg-flame px-4 py-2 text-xs font-semibold text-ink disabled:opacity-60" data-testid="button-auth-submit">{busy ? 'Working…' : mode === 'login' ? 'Sign in' : 'Create account'}</button>
+        <button type="submit" disabled={busy} className="press rounded-[9px] bg-flame px-4 py-2 text-xs font-semibold text-ink disabled:opacity-60" data-testid="button-auth-submit">{busy ? 'Working…' : mode === 'login' ? 'Sign in' : 'Create account'}</button>
       </form>
+      <div className="mt-4 flex items-center gap-3 text-[10px] uppercase tracking-wider text-[#8d8171]"><span className="h-px flex-1 bg-flame/20" />or<span className="h-px flex-1 bg-flame/20" /></div>
+      <button type="button" disabled={busy} onClick={() => void google()} className="press mt-4 flex w-full items-center justify-center gap-3 rounded-[10px] border border-line bg-[#2a241f] px-4 py-2.5 text-sm font-semibold text-cream hover:border-flame disabled:opacity-60" data-testid="button-google-signin">
+        <GoogleGlyph /> Continue with Google
+      </button>
+      {mode === 'login' && <button type="button" onClick={() => void forgot()} className="mt-3 font-mono text-[10px] uppercase tracking-wider text-[#a49b8a] hover:text-flame" data-testid="button-forgot-password">Forgot your password?</button>}
       {message && <p className="mt-3 text-xs text-[#d8a76f]" role="status">{message}</p>}
     </div>}
   </div>;
@@ -587,13 +628,14 @@ function BootScreen({ label = 'Making room for your day' }: { label?: string }) 
 
 function DashboardPreview() {
   const [view, setView] = useState<View>('dashboard');
-  const [tasks, setTasks] = useState<HabitTask[]>(initialTasks);
-  const [events, setEvents] = useState(initialEvents);
+  const [tasks, setTasks] = useState<HabitTask[]>([]);
+  const [events, setEvents] = useState<HabitEvent[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const [leaderboardError, setLeaderboardError] = useState('');
-  const [xp, setXp] = useState(436);
-  const [streak, setStreak] = useState(7);
+  const [xp, setXp] = useState(0);
+  const [streak, setStreak] = useState(1);
+  const [profile, setProfile] = useState<HabitProfile | null>(null);
   const [user, setUser] = useState<HabitUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [showComposer, setShowComposer] = useState(false);
@@ -620,8 +662,13 @@ function DashboardPreview() {
       const account = await getAccount();
       setUser(nextUser);
       setTasks(account.tasks);
-      setXp(account.profile?.xp ?? 0);
-      setStreak(account.profile?.streak_days ?? 0);
+      setProfile(account.profile);
+      setXp(Math.max(0, account.profile?.xp ?? 0));
+      const { streak: currentStreak, today } = nextStreak(account.profile);
+      setStreak(currentStreak);
+      if (currentStreak !== account.profile?.streak_days || account.profile?.last_active_on !== today) {
+        void saveProgress({ streakDays: currentStreak, lastActiveOn: today }).catch(() => undefined);
+      }
       setAuthOpen(false);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'Unable to load your saved space.');
@@ -656,15 +703,16 @@ function DashboardPreview() {
     const task = tasks.find((item) => item.id === id);
     if (!task) return;
     const next = !task.done;
+    const nextXp = Math.max(0, xp + (next ? task.xp : -task.xp));
     setTasks((current) => current.map((item) => item.id === id ? { ...item, done: next } : item));
-    setXp((value) => Math.max(0, value + (next ? task.xp : -task.xp)));
-    if (next) setStreak((value) => value + 1);
+    setXp(nextXp);
     if (user) {
       try {
         await updateTask(id, next);
+        await saveProgress({ xp: nextXp });
       } catch (updateError) {
         setTasks((current) => current.map((item) => item.id === id ? { ...item, done: task.done } : item));
-        setXp((value) => Math.max(0, value + (next ? -task.xp : task.xp)));
+        setXp(xp);
         setError(updateError instanceof Error ? updateError.message : 'Unable to save that change.');
       }
     }
@@ -685,33 +733,30 @@ function DashboardPreview() {
   const logout = async () => {
     await signOut();
     setUser(null);
-    setTasks(initialTasks);
-    setXp(436);
-    setStreak(7);
+    setProfile(null);
+    setTasks([]);
+    setEvents([]);
+    setXp(0);
+    setStreak(1);
     setLeaderboard([]);
     setLeaderboardError('');
     setView('dashboard');
+    setLocation('/login');
   };
   const reset = () => {
-    if (user) {
-      void hydrate(user);
-    } else {
-      setTasks(initialTasks);
-      setEvents(initialEvents);
-      setXp(436);
-      setStreak(7);
-      setView('dashboard');
-      setShowComposer(false);
-      setLoading(true);
-      window.setTimeout(() => setLoading(false), 450);
-    }
+    if (user) void hydrate(user);
   };
   const title = navItems.find((item) => item.id === view)?.label ?? 'Overview';
+  const displayName = profile?.display_name?.trim()
+    || user?.user_metadata?.full_name
+    || user?.user_metadata?.name
+    || user?.email?.split('@')[0]
+    || 'Friend';
 
   return <AppShell title={title} view={view} onView={setView} onReset={reset}>
     <AuthPanel user={user} open={authOpen} onOpenChange={setAuthOpen} onAuthed={hydrate} onLogout={logout} />
     {error && <div className="mb-4 rounded-[12px] border border-coral/30 bg-coral/10 px-4 py-3 text-xs text-[#f2b3a8]" role="alert">{error}</div>}
-    {loading ? <DashboardLoading /> : view === 'dashboard' ? <Overview tasks={tasks} events={events} done={done} xp={xp} streak={streak} onToggle={(id) => void toggleTask(id)} onView={setView} /> : view === 'tasks' ? <TasksView tasks={tasks} onToggle={(id) => void toggleTask(id)} onAdd={(value) => void addTask(value)} showComposer={showComposer} setShowComposer={setShowComposer} /> : view === 'calendar' ? <CalendarView events={events} onAdd={(event) => setEvents((current) => [...current, event])} /> : view === 'leaderboard' ? <LeaderboardView entries={leaderboard} loading={leaderboardLoading} error={leaderboardError} onRetry={() => void loadLeaderboard()} /> : <FocusView />}
+    {loading ? <DashboardLoading /> : view === 'dashboard' ? <Overview tasks={tasks} events={events} done={done} xp={xp} streak={streak} name={displayName} avatarUrl={profile?.avatar_url} onToggle={(id) => void toggleTask(id)} onView={setView} /> : view === 'tasks' ? <TasksView tasks={tasks} onToggle={(id) => void toggleTask(id)} onAdd={(value) => void addTask(value)} showComposer={showComposer} setShowComposer={setShowComposer} /> : view === 'calendar' ? <CalendarView events={events} onAdd={(event) => setEvents((current) => [...current, event])} /> : view === 'leaderboard' ? <LeaderboardView entries={leaderboard} loading={leaderboardLoading} error={leaderboardError} onRetry={() => void loadLeaderboard()} /> : <FocusView />}
   </AppShell>;
 }
 
@@ -759,10 +804,10 @@ function LeaderboardRow({ entry, rank }: { entry: LeaderboardEntry; rank: number
   </div>;
 }
 
-function Overview({ tasks, events, done, xp, streak, onToggle, onView }: { tasks: HabitTask[]; events: HabitEvent[]; done: number; xp: number; streak: number; onToggle: (id: string) => void; onView: (view: View) => void }) {
+function Overview({ tasks, events, done, xp, streak, name, avatarUrl, onToggle, onView }: { tasks: HabitTask[]; events: HabitEvent[]; done: number; xp: number; streak: number; name: string; avatarUrl?: string | null | undefined; onToggle: (id: string) => void; onView: (view: View) => void }) {
   return <div className="space-y-4">
-    <div className="lg:hidden"><div className="eyebrow text-[#796f62]">Tuesday · 14 October 2025</div><h1 className="mt-2 font-display text-2xl font-semibold tracking-[-.05em]">A good day to begin.</h1></div>
-    <ProfileHeader streak={streak} xp={xp} />
+    <div className="lg:hidden"><div className="eyebrow text-[#796f62]">{new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</div><h1 className="mt-2 font-display text-2xl font-semibold tracking-[-.05em]">A good day to begin.</h1></div>
+    <ProfileHeader streak={streak} xp={xp} name={name} avatarUrl={avatarUrl} />
     <div className="grid grid-cols-3 gap-3">
       <Stat value={String(tasks.filter((task) => !task.done).length).padStart(2, '0')} label="open tasks" color="coral" />
       <Stat value={String(events.length).padStart(2, '0')} label="up next" color="teal" />
@@ -821,7 +866,20 @@ function TasksView({ tasks, onToggle, onAdd, showComposer, setShowComposer }: { 
 function CalendarView({ events, onAdd }: { events: HabitEvent[]; onAdd: (event: HabitEvent) => void }) {
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState('');
-  const submit = () => { if (!title.trim()) return; onAdd({ id: `event-${Date.now()}`, day: 'THU', date: '16', title: title.trim(), time: '16:30', tone: 'teal' }); setTitle(''); setAdding(false); };
+  const submit = () => {
+    if (!title.trim()) return;
+    const now = new Date();
+    onAdd({
+      id: `event-${Date.now()}`,
+      day: now.toLocaleDateString(undefined, { weekday: 'short' }).toUpperCase(),
+      date: String(now.getDate()),
+      title: title.trim(),
+      time: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
+      tone: 'teal',
+    });
+    setTitle('');
+    setAdding(false);
+  };
   return <div className="space-y-4" data-testid="view-calendar"><div className="flex items-end justify-between"><div><div className="eyebrow text-teal">Make space for it</div><h2 className="mt-2 font-display text-3xl font-semibold tracking-[-.06em]">October, in view</h2><p className="mt-2 text-sm text-[#9f9688]">Your days, with enough breathing room.</p></div><button type="button" onClick={() => setAdding(!adding)} className="press inline-flex items-center gap-2 rounded-[11px] bg-teal px-3.5 py-2.5 text-xs font-semibold text-ink" data-testid="button-add-event"><Plus className="size-4" /> Add event</button></div>
     {adding && <div className="flex max-w-[600px] gap-2 rounded-[14px] border border-teal/30 bg-teal/10 p-3"><input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') submit(); }} placeholder="Name this moment" className="min-w-0 flex-1 bg-transparent px-2 text-sm outline-none placeholder:text-[#8f9688]" data-testid="input-new-event" /><button type="button" onClick={submit} className="rounded-[9px] bg-teal px-3 py-2 text-xs font-semibold text-ink" data-testid="button-save-event">Add</button></div>}
     <div className="grid gap-4 lg:grid-cols-[1.1fr_.9fr]"><section className="rounded-[16px] border border-line bg-surface p-4 sm:p-5"><div className="grid grid-cols-7 gap-1 text-center font-mono text-[9px] uppercase text-[#82796d]">{['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day) => <div key={day} className="py-2">{day}</div>)}{Array.from({ length: 28 }, (_, i) => <div key={i} className={`grid aspect-square place-items-center rounded-[8px] text-xs ${i === 13 ? 'bg-flame font-semibold text-ink' : [14, 15, 16].includes(i) ? 'bg-[#332d26] text-cream' : 'text-[#82796d] hover:bg-[#332d26]'}`}>{i + 1}</div>)}</div></section><section className="rounded-[16px] border border-line bg-surface p-4 sm:p-5"><div className="mb-3 flex items-center gap-2"><span className="size-2 rounded-full bg-teal" /><h3 className="font-display text-sm font-semibold">This week</h3></div>{events.length ? events.map((event, index) => <EventRow key={event.id} event={event} last={index === events.length - 1} />) : <EmptyState icon={<CalendarDays className="size-5" />} title="Open calendar" copy="Your next plan can live here." action="Add an event" onClick={() => setAdding(true)} />}</section></div>
@@ -837,8 +895,55 @@ function FocusView() {
   return <div className="max-w-[780px] space-y-4" data-testid="view-focus"><div><div className="eyebrow text-sky">Protect the next hour</div><h2 className="mt-2 font-display text-3xl font-semibold tracking-[-.06em]">Focus room</h2><p className="mt-2 text-sm text-[#9f9688]">No optimization required. Just a little less noise.</p></div><section className="relative overflow-hidden rounded-[20px] border border-line bg-[#252d2b] p-8 sm:p-12"><div className="absolute -right-16 -top-20 size-64 rounded-full border border-teal/20" /><div className="absolute -bottom-32 -left-10 size-72 rounded-full border border-sky/10" /><div className="relative text-center"><div className="mx-auto grid size-16 place-items-center rounded-[17px] bg-teal/15 text-teal"><Music2 className="size-7" /></div><div className="eyebrow mt-7 text-[#9dbbb0]">Quiet room · 25 minute session</div><div className="mt-5 font-mono text-[clamp(4rem,13vw,7rem)] leading-none tracking-[-.08em] text-cream" data-testid="text-focus-timer">{minutes}:{remaining}</div><div className="mt-4 text-sm text-[#a9bdb3]">A good place to put one thing down.</div><button type="button" onClick={() => setRunning(!running)} className="press mt-8 rounded-[11px] bg-flame px-6 py-3 text-sm font-semibold text-ink" data-testid="button-toggle-focus">{running ? 'Pause the room' : 'Start a focus session'}</button><button type="button" onClick={() => { setRunning(false); setSeconds(25 * 60); }} className="ml-3 rounded-[11px] border border-[#536760] px-4 py-3 text-sm text-[#b5c8be] hover:bg-[#33433e]" data-testid="button-reset-focus">Reset</button></div></section><div className="grid gap-3 sm:grid-cols-3"><div className="rounded-[14px] border border-line bg-surface p-4"><div className="font-mono text-[9px] uppercase text-[#82796d]">Sound</div><div className="mt-2 flex items-center gap-2 text-sm"><Music2 className="size-4 text-teal" /> Gentle rain</div></div><div className="rounded-[14px] border border-line bg-surface p-4"><div className="font-mono text-[9px] uppercase text-[#82796d]">Sessions</div><div className="mt-2 text-sm">03 this week</div></div><div className="rounded-[14px] border border-line bg-surface p-4"><div className="font-mono text-[9px] uppercase text-[#82796d]">Earned</div><div className="mt-2 text-sm text-flame">+75 XP</div></div></div></div>;
 }
 
+function ResetPasswordPage() {
+  const [, setLocation] = useLocation();
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+  const [done, setDone] = useState(false);
+
+  const submit = async () => {
+    if (password.length < 8) {
+      setMessage('Use at least 8 characters.');
+      return;
+    }
+    if (password !== confirm) {
+      setMessage('Both passwords need to match.');
+      return;
+    }
+    setBusy(true);
+    setMessage('');
+    try {
+      await setNewPassword(password);
+      setDone(true);
+      window.setTimeout(() => setLocation('/app'), 1200);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to update your password.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return <main className="grain landing-glow flex min-h-[100dvh] items-center justify-center px-5 py-10 text-cream">
+    <div className="w-full max-w-[440px]">
+      <Link href="/" className="mb-8 inline-flex"><Wordmark /></Link>
+      <div className="pop-in rounded-[20px] border border-line bg-surface p-5 sm:p-7" data-testid="page-reset-password">
+        <div className="eyebrow text-flame">A fresh start</div>
+        <h1 className="mt-3 font-display text-3xl font-semibold tracking-[-.06em]">Choose a new password.</h1>
+        {done ? <p className="mt-4 text-sm text-teal" role="status">All set. Taking you to your space…</p> : <form className="mt-6 grid gap-3" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
+          <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" required minLength={8} autoComplete="new-password" placeholder="New password (8+ characters)" className="rounded-[10px] border border-line bg-[#2a241f] px-4 py-3 text-sm text-cream outline-none focus:border-flame" data-testid="input-new-password" />
+          <input value={confirm} onChange={(event) => setConfirm(event.target.value)} type="password" required minLength={8} autoComplete="new-password" placeholder="Repeat new password" className="rounded-[10px] border border-line bg-[#2a241f] px-4 py-3 text-sm text-cream outline-none focus:border-flame" data-testid="input-confirm-password" />
+          <button type="submit" disabled={busy} className="press rounded-[10px] bg-flame px-5 py-3 text-sm font-semibold text-ink disabled:opacity-60" data-testid="button-save-password">{busy ? 'Saving…' : 'Save new password'}</button>
+        </form>}
+        {message && <p className="mt-3 text-xs text-coral" role="alert">{message}</p>}
+      </div>
+    </div>
+  </main>;
+}
+
 function Router() {
-  return <RoutedErrorBoundary><Switch><Route path="/" component={Landing} /><Route path="/login" component={LoginPage} /><Route path="/onboarding" component={OnboardingPage} /><Route path="/app" component={DashboardPreview} /><Route path="/preview" component={LoginRedirect} /><Route component={NotFound} /></Switch></RoutedErrorBoundary>;
+  return <RoutedErrorBoundary><Switch><Route path="/" component={Landing} /><Route path="/login" component={LoginPage} /><Route path="/onboarding" component={OnboardingPage} /><Route path="/app" component={DashboardPreview} /><Route path="/reset-password" component={ResetPasswordPage} /><Route path="/preview" component={LoginRedirect} /><Route component={NotFound} /></Switch></RoutedErrorBoundary>;
 }
 
 function RoutedErrorBoundary({ children }: { children: ReactNode }) {
