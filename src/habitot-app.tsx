@@ -437,6 +437,37 @@ function AuthPanel({
     }
   };
 
+  const google = async () => {
+    setBusy(true);
+    setMessage('');
+    try {
+      const result = await signInWithGoogle();
+      if (result.redirected) return;
+      const session = await getSession();
+      if (session) await onAuthed(session);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to sign in with Google.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const forgot = async () => {
+    if (!email.trim()) {
+      setMessage('Type your email address first, then tap this again.');
+      return;
+    }
+    setBusy(true);
+    try {
+      await requestPasswordReset(email.trim());
+      setMessage('Password reset link sent. Check your email.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to send the reset email.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return <div className="mb-4 rounded-[14px] border border-flame/25 bg-flame/10 p-4" data-testid="panel-auth">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div><div className="eyebrow text-flame">{open ? (mode === 'login' ? 'Welcome back' : 'Make it yours') : 'Free preview'}</div><p className="mt-1 text-[12px] text-[#b9aa96]">{open ? 'Save your tasks and return to them on any device.' : 'This sample is local. Sign in to make your tasks persistent.'}</p></div>
