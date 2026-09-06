@@ -818,8 +818,8 @@ function LeaderboardRow({ entry, rank }: { entry: LeaderboardEntry; rank: number
 
 function Overview({ tasks, events, done, xp, streak, name, avatarUrl, onToggle, onView }: { tasks: HabitTask[]; events: HabitEvent[]; done: number; xp: number; streak: number; name: string; avatarUrl?: string | null; onToggle: (id: string) => void; onView: (view: View) => void }) {
   return <div className="space-y-4">
-    <div className="lg:hidden"><div className="eyebrow text-[#796f62]">Tuesday · 14 October 2025</div><h1 className="mt-2 font-display text-2xl font-semibold tracking-[-.05em]">A good day to begin.</h1></div>
-    <ProfileHeader streak={streak} xp={xp} />
+    <div className="lg:hidden"><div className="eyebrow text-[#796f62]">{new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</div><h1 className="mt-2 font-display text-2xl font-semibold tracking-[-.05em]">A good day to begin.</h1></div>
+    <ProfileHeader streak={streak} xp={xp} name={name} avatarUrl={avatarUrl} />
     <div className="grid grid-cols-3 gap-3">
       <Stat value={String(tasks.filter((task) => !task.done).length).padStart(2, '0')} label="open tasks" color="coral" />
       <Stat value={String(events.length).padStart(2, '0')} label="up next" color="teal" />
