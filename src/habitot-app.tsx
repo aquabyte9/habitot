@@ -448,8 +448,13 @@ function AuthPanel({
         {mode === 'signup' && <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name" autoComplete="name" className="rounded-[9px] border border-line bg-[#2a241f] px-3 py-2 text-sm text-cream outline-none focus:border-flame" data-testid="input-auth-name" />}
         <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Email address" type="email" required autoComplete="email" className="rounded-[9px] border border-line bg-[#2a241f] px-3 py-2 text-sm text-cream outline-none focus:border-flame" data-testid="input-auth-email" />
         <input value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password (8+ characters)" type="password" required minLength={8} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} className="rounded-[9px] border border-line bg-[#2a241f] px-3 py-2 text-sm text-cream outline-none focus:border-flame" data-testid="input-auth-password" />
-        <button type="submit" disabled={busy} className="rounded-[9px] bg-flame px-4 py-2 text-xs font-semibold text-ink disabled:opacity-60" data-testid="button-auth-submit">{busy ? 'Working…' : mode === 'login' ? 'Sign in' : 'Create account'}</button>
+        <button type="submit" disabled={busy} className="press rounded-[9px] bg-flame px-4 py-2 text-xs font-semibold text-ink disabled:opacity-60" data-testid="button-auth-submit">{busy ? 'Working…' : mode === 'login' ? 'Sign in' : 'Create account'}</button>
       </form>
+      <div className="mt-4 flex items-center gap-3 text-[10px] uppercase tracking-wider text-[#8d8171]"><span className="h-px flex-1 bg-flame/20" />or<span className="h-px flex-1 bg-flame/20" /></div>
+      <button type="button" disabled={busy} onClick={() => void google()} className="press mt-4 flex w-full items-center justify-center gap-3 rounded-[10px] border border-line bg-[#2a241f] px-4 py-2.5 text-sm font-semibold text-cream hover:border-flame disabled:opacity-60" data-testid="button-google-signin">
+        <GoogleGlyph /> Continue with Google
+      </button>
+      {mode === 'login' && <button type="button" onClick={() => void forgot()} className="mt-3 font-mono text-[10px] uppercase tracking-wider text-[#a49b8a] hover:text-flame" data-testid="button-forgot-password">Forgot your password?</button>}
       {message && <p className="mt-3 text-xs text-[#d8a76f]" role="status">{message}</p>}
     </div>}
   </div>;
