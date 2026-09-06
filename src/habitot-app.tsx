@@ -354,7 +354,7 @@ function AppShell({ title, view, onView, children, onReset }: { title: string; v
 
 function NavButton({ item, active, onClick, desktop = false }: { item: (typeof navItems)[number]; active: boolean; onClick: () => void; desktop?: boolean }) {
   const Icon = item.icon;
-  return <button type="button" onClick={onClick} className={`flex ${desktop ? 'w-full flex-row gap-3 px-3 py-2.5 text-sm' : 'flex-col gap-1 px-2 py-1.5 text-[10px]'} items-center rounded-[11px] font-medium transition-colors ${active ? 'bg-flame/12 text-flame' : 'text-[#91887b] hover:bg-[#332d26] hover:text-cream'}`} aria-current={active ? 'page' : undefined} data-testid={`button-nav-${item.id}`}><Icon className={desktop ? 'size-4' : 'size-4'} /><span>{item.label}</span></button>;
+  return <button type="button" onClick={onClick} className={`press flex ${desktop ? 'w-full flex-row gap-3 px-3 py-2.5 text-sm' : 'w-full flex-col justify-center gap-1 px-2 py-1.5 text-[10px]'} items-center rounded-[11px] font-medium transition-colors ${active ? 'bg-flame/12 text-flame' : 'text-[#91887b] hover:bg-[#332d26] hover:text-cream'}`} aria-current={active ? 'page' : undefined} data-testid={`button-nav-${item.id}`}><Icon className={`size-4 ${active ? 'nav-pop' : ''}`} /><span className="whitespace-nowrap">{item.label}</span></button>;
 }
 
 const XP_PER_LEVEL = 100;
