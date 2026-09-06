@@ -345,8 +345,8 @@ function AppShell({ title, view, onView, children, onReset }: { title: string; v
         {helpOpen && <div className="mx-auto mt-3 max-w-[1110px] px-5 sm:px-8 lg:px-10"><div className="flex items-start justify-between rounded-[12px] border border-teal/25 bg-teal/10 px-4 py-3 text-[12px] leading-5 text-[#b9cfc2]">This is an interactive sample. Check off a task or switch sections; your changes live only in this preview.<button type="button" onClick={() => setHelpOpen(false)} className="ml-4 text-teal" aria-label="Dismiss preview note" data-testid="button-dismiss-help"><X className="size-4" /></button></div></div>}
         <main className="mx-auto max-w-[1110px] px-5 pt-5 sm:px-8 lg:px-10 lg:pt-7">{children}</main>
       </div>
-      <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-[#25211d]/95 px-2 pb-[max(.45rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md lg:hidden" aria-label="Mobile navigation">
-        <div className="mx-auto grid max-w-md grid-cols-4 gap-1">{navItems.map((item) => <NavButton key={item.id} item={item} active={view === item.id} onClick={() => onView(item.id)} />)}</div>
+      <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-[#25211d]/95 pb-[max(.45rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md lg:hidden" aria-label="Mobile navigation">
+        <div className="nav-scroll flex snap-x snap-mandatory gap-1 overflow-x-auto px-3">{navItems.map((item) => <div key={item.id} className="w-[22%] min-w-[76px] shrink-0 snap-start"><NavButton item={item} active={view === item.id} onClick={() => onView(item.id)} /></div>)}</div>
       </nav>
     </div>
   );
