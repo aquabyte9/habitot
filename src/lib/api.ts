@@ -103,12 +103,12 @@ export async function updateProfile(input: {
 }) {
   const userId = await requireUserId();
   const patch: Record<string, unknown> = {};
-  if (input.displayName !== undefined) patch.display_name = input.displayName;
-  if (input.heightCm !== undefined) patch.height_cm = input.heightCm;
-  if (input.weightKg !== undefined) patch.weight_kg = input.weightKg;
-  if (input.lifeGoals !== undefined) patch.life_goals = input.lifeGoals;
-  if (input.avatarUrl !== undefined) patch.avatar_url = input.avatarUrl;
-  if (input.onboarded !== undefined) patch.onboarded = input.onboarded;
+  if (input.displayName !== undefined) patch['display_name'] = input.displayName;
+  if (input.heightCm !== undefined) patch['height_cm'] = input.heightCm;
+  if (input.weightKg !== undefined) patch['weight_kg'] = input.weightKg;
+  if (input.lifeGoals !== undefined) patch['life_goals'] = input.lifeGoals;
+  if (input.avatarUrl !== undefined) patch['avatar_url'] = input.avatarUrl;
+  if (input.onboarded !== undefined) patch['onboarded'] = input.onboarded;
 
   const { data, error } = await supabase
     .from('profiles')

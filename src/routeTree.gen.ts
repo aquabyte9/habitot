@@ -14,17 +14,6 @@ import { Route as AppRouteImport } from './routes/app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as PreviewRouteImport } from './routes/preview'
-import { Route as ApiLeaderboardRouteImport } from './routes/api/leaderboard'
-import { Route as ApiProfileRouteImport } from './routes/api/profile'
-import { Route as ApiTasksRouteImport } from './routes/api/tasks'
-import { Route as ApiAuthLoginRouteImport } from './routes/api/auth/login'
-import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
-import { Route as ApiAuthSessionRouteImport } from './routes/api/auth/session'
-import { Route as ApiAuthSignupRouteImport } from './routes/api/auth/signup'
-import { Route as ApiTasksTaskIdRouteImport } from './routes/api/tasks/$taskId'
-import { Route as ApiStorageObjectsKeyRouteImport } from './routes/api/storage/objects/$key'
-import { Route as ApiStoragePutKeyRouteImport } from './routes/api/storage/put/$key'
-import { Route as ApiStorageUploadsRequestUrlRouteImport } from './routes/api/storage/uploads/request-url'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -51,62 +40,6 @@ const PreviewRoute = PreviewRouteImport.update({
   path: '/preview',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiLeaderboardRoute = ApiLeaderboardRouteImport.update({
-  id: '/api/leaderboard',
-  path: '/api/leaderboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiProfileRoute = ApiProfileRouteImport.update({
-  id: '/api/profile',
-  path: '/api/profile',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiTasksRoute = ApiTasksRouteImport.update({
-  id: '/api/tasks',
-  path: '/api/tasks',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAuthLoginRoute = ApiAuthLoginRouteImport.update({
-  id: '/api/auth/login',
-  path: '/api/auth/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAuthLogoutRoute = ApiAuthLogoutRouteImport.update({
-  id: '/api/auth/logout',
-  path: '/api/auth/logout',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAuthSessionRoute = ApiAuthSessionRouteImport.update({
-  id: '/api/auth/session',
-  path: '/api/auth/session',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAuthSignupRoute = ApiAuthSignupRouteImport.update({
-  id: '/api/auth/signup',
-  path: '/api/auth/signup',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiTasksTaskIdRoute = ApiTasksTaskIdRouteImport.update({
-  id: '/$taskId',
-  path: '/$taskId',
-  getParentRoute: () => ApiTasksRoute,
-} as any)
-const ApiStorageObjectsKeyRoute = ApiStorageObjectsKeyRouteImport.update({
-  id: '/api/storage/objects/$key',
-  path: '/api/storage/objects/$key',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiStoragePutKeyRoute = ApiStoragePutKeyRouteImport.update({
-  id: '/api/storage/put/$key',
-  path: '/api/storage/put/$key',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiStorageUploadsRequestUrlRoute =
-  ApiStorageUploadsRequestUrlRouteImport.update({
-    id: '/api/storage/uploads/request-url',
-    path: '/api/storage/uploads/request-url',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -114,17 +47,6 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/preview': typeof PreviewRoute
-  '/api/leaderboard': typeof ApiLeaderboardRoute
-  '/api/profile': typeof ApiProfileRoute
-  '/api/tasks': typeof ApiTasksRouteWithChildren
-  '/api/auth/login': typeof ApiAuthLoginRoute
-  '/api/auth/logout': typeof ApiAuthLogoutRoute
-  '/api/auth/session': typeof ApiAuthSessionRoute
-  '/api/auth/signup': typeof ApiAuthSignupRoute
-  '/api/tasks/$taskId': typeof ApiTasksTaskIdRoute
-  '/api/storage/objects/$key': typeof ApiStorageObjectsKeyRoute
-  '/api/storage/put/$key': typeof ApiStoragePutKeyRoute
-  '/api/storage/uploads/request-url': typeof ApiStorageUploadsRequestUrlRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -132,17 +54,6 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/preview': typeof PreviewRoute
-  '/api/leaderboard': typeof ApiLeaderboardRoute
-  '/api/profile': typeof ApiProfileRoute
-  '/api/tasks': typeof ApiTasksRouteWithChildren
-  '/api/auth/login': typeof ApiAuthLoginRoute
-  '/api/auth/logout': typeof ApiAuthLogoutRoute
-  '/api/auth/session': typeof ApiAuthSessionRoute
-  '/api/auth/signup': typeof ApiAuthSignupRoute
-  '/api/tasks/$taskId': typeof ApiTasksTaskIdRoute
-  '/api/storage/objects/$key': typeof ApiStorageObjectsKeyRoute
-  '/api/storage/put/$key': typeof ApiStoragePutKeyRoute
-  '/api/storage/uploads/request-url': typeof ApiStorageUploadsRequestUrlRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -151,73 +62,13 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/preview': typeof PreviewRoute
-  '/api/leaderboard': typeof ApiLeaderboardRoute
-  '/api/profile': typeof ApiProfileRoute
-  '/api/tasks': typeof ApiTasksRouteWithChildren
-  '/api/auth/login': typeof ApiAuthLoginRoute
-  '/api/auth/logout': typeof ApiAuthLogoutRoute
-  '/api/auth/session': typeof ApiAuthSessionRoute
-  '/api/auth/signup': typeof ApiAuthSignupRoute
-  '/api/tasks/$taskId': typeof ApiTasksTaskIdRoute
-  '/api/storage/objects/$key': typeof ApiStorageObjectsKeyRoute
-  '/api/storage/put/$key': typeof ApiStoragePutKeyRoute
-  '/api/storage/uploads/request-url': typeof ApiStorageUploadsRequestUrlRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/app'
-    | '/login'
-    | '/onboarding'
-    | '/preview'
-    | '/api/leaderboard'
-    | '/api/profile'
-    | '/api/tasks'
-    | '/api/auth/login'
-    | '/api/auth/logout'
-    | '/api/auth/session'
-    | '/api/auth/signup'
-    | '/api/tasks/$taskId'
-    | '/api/storage/objects/$key'
-    | '/api/storage/put/$key'
-    | '/api/storage/uploads/request-url'
+  fullPaths: '/' | '/app' | '/login' | '/onboarding' | '/preview'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/app'
-    | '/login'
-    | '/onboarding'
-    | '/preview'
-    | '/api/leaderboard'
-    | '/api/profile'
-    | '/api/tasks'
-    | '/api/auth/login'
-    | '/api/auth/logout'
-    | '/api/auth/session'
-    | '/api/auth/signup'
-    | '/api/tasks/$taskId'
-    | '/api/storage/objects/$key'
-    | '/api/storage/put/$key'
-    | '/api/storage/uploads/request-url'
-  id:
-    | '__root__'
-    | '/'
-    | '/app'
-    | '/login'
-    | '/onboarding'
-    | '/preview'
-    | '/api/leaderboard'
-    | '/api/profile'
-    | '/api/tasks'
-    | '/api/auth/login'
-    | '/api/auth/logout'
-    | '/api/auth/session'
-    | '/api/auth/signup'
-    | '/api/tasks/$taskId'
-    | '/api/storage/objects/$key'
-    | '/api/storage/put/$key'
-    | '/api/storage/uploads/request-url'
+  to: '/' | '/app' | '/login' | '/onboarding' | '/preview'
+  id: '__root__' | '/' | '/app' | '/login' | '/onboarding' | '/preview'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -226,16 +77,6 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   OnboardingRoute: typeof OnboardingRoute
   PreviewRoute: typeof PreviewRoute
-  ApiLeaderboardRoute: typeof ApiLeaderboardRoute
-  ApiProfileRoute: typeof ApiProfileRoute
-  ApiTasksRoute: typeof ApiTasksRouteWithChildren
-  ApiAuthLoginRoute: typeof ApiAuthLoginRoute
-  ApiAuthLogoutRoute: typeof ApiAuthLogoutRoute
-  ApiAuthSessionRoute: typeof ApiAuthSessionRoute
-  ApiAuthSignupRoute: typeof ApiAuthSignupRoute
-  ApiStorageObjectsKeyRoute: typeof ApiStorageObjectsKeyRoute
-  ApiStoragePutKeyRoute: typeof ApiStoragePutKeyRoute
-  ApiStorageUploadsRequestUrlRoute: typeof ApiStorageUploadsRequestUrlRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -275,97 +116,8 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/leaderboard': {
-      id: '/api/leaderboard'
-      path: '/api/leaderboard'
-      fullPath: '/api/leaderboard'
-      preLoaderRoute: typeof ApiLeaderboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/profile': {
-      id: '/api/profile'
-      path: '/api/profile'
-      fullPath: '/api/profile'
-      preLoaderRoute: typeof ApiProfileRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/tasks': {
-      id: '/api/tasks'
-      path: '/api/tasks'
-      fullPath: '/api/tasks'
-      preLoaderRoute: typeof ApiTasksRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/auth/login': {
-      id: '/api/auth/login'
-      path: '/api/auth/login'
-      fullPath: '/api/auth/login'
-      preLoaderRoute: typeof ApiAuthLoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/auth/logout': {
-      id: '/api/auth/logout'
-      path: '/api/auth/logout'
-      fullPath: '/api/auth/logout'
-      preLoaderRoute: typeof ApiAuthLogoutRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/auth/session': {
-      id: '/api/auth/session'
-      path: '/api/auth/session'
-      fullPath: '/api/auth/session'
-      preLoaderRoute: typeof ApiAuthSessionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/auth/signup': {
-      id: '/api/auth/signup'
-      path: '/api/auth/signup'
-      fullPath: '/api/auth/signup'
-      preLoaderRoute: typeof ApiAuthSignupRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/tasks/$taskId': {
-      id: '/api/tasks/$taskId'
-      path: '/$taskId'
-      fullPath: '/api/tasks/$taskId'
-      preLoaderRoute: typeof ApiTasksTaskIdRouteImport
-      parentRoute: typeof ApiTasksRoute
-    }
-    '/api/storage/objects/$key': {
-      id: '/api/storage/objects/$key'
-      path: '/api/storage/objects/$key'
-      fullPath: '/api/storage/objects/$key'
-      preLoaderRoute: typeof ApiStorageObjectsKeyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/storage/put/$key': {
-      id: '/api/storage/put/$key'
-      path: '/api/storage/put/$key'
-      fullPath: '/api/storage/put/$key'
-      preLoaderRoute: typeof ApiStoragePutKeyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/storage/uploads/request-url': {
-      id: '/api/storage/uploads/request-url'
-      path: '/api/storage/uploads/request-url'
-      fullPath: '/api/storage/uploads/request-url'
-      preLoaderRoute: typeof ApiStorageUploadsRequestUrlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
-
-interface ApiTasksRouteChildren {
-  ApiTasksTaskIdRoute: typeof ApiTasksTaskIdRoute
-}
-
-const ApiTasksRouteChildren: ApiTasksRouteChildren = {
-  ApiTasksTaskIdRoute: ApiTasksTaskIdRoute,
-}
-
-const ApiTasksRouteWithChildren = ApiTasksRoute._addFileChildren(
-  ApiTasksRouteChildren,
-)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -373,16 +125,6 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   OnboardingRoute: OnboardingRoute,
   PreviewRoute: PreviewRoute,
-  ApiLeaderboardRoute: ApiLeaderboardRoute,
-  ApiProfileRoute: ApiProfileRoute,
-  ApiTasksRoute: ApiTasksRouteWithChildren,
-  ApiAuthLoginRoute: ApiAuthLoginRoute,
-  ApiAuthLogoutRoute: ApiAuthLogoutRoute,
-  ApiAuthSessionRoute: ApiAuthSessionRoute,
-  ApiAuthSignupRoute: ApiAuthSignupRoute,
-  ApiStorageObjectsKeyRoute: ApiStorageObjectsKeyRoute,
-  ApiStoragePutKeyRoute: ApiStoragePutKeyRoute,
-  ApiStorageUploadsRequestUrlRoute: ApiStorageUploadsRequestUrlRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
