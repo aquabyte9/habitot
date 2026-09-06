@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { createContext, type ReactNode, useContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -41,6 +41,8 @@ import {
   Menu,
   Moon,
   Music2,
+  Pause,
+  Play,
   Plus,
   RotateCcw,
   Settings2,
@@ -48,12 +50,14 @@ import {
   Sun,
   Target,
   Trophy,
+  User as UserIcon,
+  Volume2,
   X,
 } from 'lucide-react';
 
 const queryClient = new QueryClient();
 
-type View = 'dashboard' | 'tasks' | 'calendar' | 'focus' | 'leaderboard';
+type View = 'dashboard' | 'tasks' | 'calendar' | 'focus' | 'leaderboard' | 'profile';
 type HabitEvent = { id: string; day: string; date: string; title: string; time: string; tone: 'teal' | 'coral' | 'sky' };
 
 
@@ -63,6 +67,7 @@ const navItems: { id: View; label: string; icon: typeof LayoutGrid }[] = [
   { id: 'calendar', label: 'Calendar', icon: CalendarDays },
   { id: 'focus', label: 'Focus', icon: Music2 },
   { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
+  { id: 'profile', label: 'Profile', icon: UserIcon },
 ];
 
 function MascotMark({ className = 'size-10' }: { className?: string }) {
