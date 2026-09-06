@@ -56,18 +56,6 @@ const queryClient = new QueryClient();
 type View = 'dashboard' | 'tasks' | 'calendar' | 'focus' | 'leaderboard';
 type HabitEvent = { id: string; day: string; date: string; title: string; time: string; tone: 'teal' | 'coral' | 'sky' };
 
-const initialTasks: HabitTask[] = [
-  { id: 'water', title: 'Drink a glass of water', tag: 'Body', time: '07:30', xp: 12, done: true },
-  { id: 'walk', title: 'Walk around the block', tag: 'Reset', time: '12:15', xp: 20, done: false },
-  { id: 'journal', title: 'Write three honest lines', tag: 'Mind', time: '18:30', xp: 18, done: false },
-  { id: 'phone', title: 'Leave the phone outside the bedroom', tag: 'Evening', time: '22:00', xp: 24, done: false },
-];
-
-const initialEvents: HabitEvent[] = [
-  { id: 'standup', day: 'TODAY', date: '14', title: 'Product stand-up', time: '09:30', tone: 'teal' },
-  { id: 'lunch', day: 'TODAY', date: '14', title: 'Lunch with Sam', time: '12:45', tone: 'coral' },
-  { id: 'swim', day: 'WED', date: '15', title: 'Evening swim', time: '18:00', tone: 'sky' },
-];
 
 const navItems: { id: View; label: string; icon: typeof LayoutGrid }[] = [
   { id: 'dashboard', label: 'Overview', icon: LayoutGrid },
