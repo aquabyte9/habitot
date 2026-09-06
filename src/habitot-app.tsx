@@ -15,7 +15,6 @@ import {
   signInWithGoogle,
   nextStreak,
   saveProgress,
-  type HabitProfile as HabitProfileType,
   signIn,
   signOut,
   signUp,
