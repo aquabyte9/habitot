@@ -745,26 +745,18 @@ function DashboardPreview() {
   const logout = async () => {
     await signOut();
     setUser(null);
-    setTasks(initialTasks);
-    setXp(436);
-    setStreak(7);
+    setProfile(null);
+    setTasks([]);
+    setEvents([]);
+    setXp(0);
+    setStreak(1);
     setLeaderboard([]);
     setLeaderboardError('');
     setView('dashboard');
+    setLocation('/login');
   };
   const reset = () => {
-    if (user) {
-      void hydrate(user);
-    } else {
-      setTasks(initialTasks);
-      setEvents(initialEvents);
-      setXp(436);
-      setStreak(7);
-      setView('dashboard');
-      setShowComposer(false);
-      setLoading(true);
-      window.setTimeout(() => setLoading(false), 450);
-    }
+    if (user) void hydrate(user);
   };
   const title = navItems.find((item) => item.id === view)?.label ?? 'Overview';
 
