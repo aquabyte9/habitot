@@ -470,7 +470,7 @@ function Landing() {
           </div>
           <div className="mt-14 grid gap-6 border-t border-[#4a4238] pt-6 text-[11px] text-[#a49b8a] sm:grid-cols-3">
             <div><div className="font-mono text-flame">01</div><div className="mt-2">No account required to look around.</div></div>
-            <div><div className="font-mono text-teal">02</div><div className="mt-2">Everything here stays in this browser preview.</div></div>
+            <div><div className="font-mono text-teal">02</div><div className="mt-2">Your tasks and streak stay with your account.</div></div>
             <div><div className="font-mono text-sky">03</div><div className="mt-2">Your first check-off is waiting inside.</div></div>
           </div>
         </div>
@@ -654,7 +654,7 @@ function AuthPanel({
 
   return <div className="mb-4 rounded-[14px] border border-flame/25 bg-flame/10 p-4" data-testid="panel-auth">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div><div className="eyebrow text-flame">{open ? (mode === 'login' ? 'Welcome back' : 'Make it yours') : 'Free preview'}</div><p className="mt-1 text-[12px] text-[#b9aa96]">{open ? 'Save your tasks and return to them on any device.' : 'This sample is local. Sign in to make your tasks persistent.'}</p></div>
+      <div><div className="eyebrow text-flame">{open ? (mode === 'login' ? 'Welcome back' : 'Make it yours') : 'Welcome'}</div><p className="mt-1 text-[12px] text-[#b9aa96]">{open ? 'Save your tasks and return to them on any device.' : 'Sign in to keep your tasks, streak, and progress.'}</p></div>
       <button type="button" onClick={() => { onOpenChange(!open); setMessage(''); }} className="rounded-[9px] border border-flame/35 px-3 py-2 text-xs font-semibold text-flame hover:bg-flame/10" data-testid="button-auth-toggle">{open ? 'Close' : 'Sign in or sign up'}</button>
     </div>
     {open && <div className="mt-4 border-t border-flame/15 pt-4">
@@ -937,9 +937,6 @@ function DashboardPreview() {
     setView('dashboard');
     setLocation('/login');
   };
-  const reset = () => {
-    if (user) void hydrate(user);
-  };
   const title = navItems.find((item) => item.id === view)?.label ?? 'Overview';
   const displayName = profile?.display_name?.trim()
     || user?.user_metadata?.full_name
@@ -947,7 +944,7 @@ function DashboardPreview() {
     || user?.email?.split('@')[0]
     || 'Friend';
 
-  return <AppShell title={title} view={view} onView={setView} onReset={reset}>
+  return <AppShell title={title} view={view} onView={setView}>
     <AuthPanel user={user} open={authOpen} onOpenChange={setAuthOpen} onAuthed={hydrate} onLogout={logout} />
     {error && <div className="mb-4 rounded-[12px] border border-coral/30 bg-coral/10 px-4 py-3 text-xs text-[#f2b3a8]" role="alert">{error}</div>}
     {loading ? <DashboardLoading /> : view === 'dashboard' ? <Overview tasks={tasks} events={events} done={done} xp={xp} streak={streak} name={displayName} avatarUrl={profile?.avatar_url} onToggle={(id) => void toggleTask(id)} onView={setView} /> : view === 'tasks' ? <TasksView tasks={tasks} onToggle={(id) => void toggleTask(id)} onAdd={(value) => void addTask(value)} showComposer={showComposer} setShowComposer={setShowComposer} /> : view === 'calendar' ? <CalendarView events={events} onAdd={(event) => setEvents((current) => [...current, event])} /> : view === 'leaderboard' ? <LeaderboardView entries={leaderboard} loading={leaderboardLoading} error={leaderboardError} onRetry={() => void loadLeaderboard()} /> : view === 'profile' ? <ProfileView name={displayName} email={user?.email ?? ''} avatarUrl={profile?.avatar_url} xp={xp} streak={streak} tasksTotal={tasks.length} tasksDone={done} onLogout={() => void logout()} /> : <FocusView onSessionComplete={awardXp} />}
@@ -1265,7 +1262,7 @@ function ResetPasswordPage() {
 }
 
 function Router() {
-  return <RoutedErrorBoundary><Switch><Route path="/" component={Landing} /><Route path="/login" component={LoginPage} /><Route path="/onboarding" component={OnboardingPage} /><Route path="/app" component={DashboardPreview} /><Route path="/reset-password" component={ResetPasswordPage} /><Route path="/preview" component={LoginRedirect} /><Route component={NotFound} /></Switch></RoutedErrorBoundary>;
+  return <RoutedErrorBoundary><Switch><Route path="/" component={Landing} /><Route path="/login" component={LoginPage} /><Route path="/onboarding" component={OnboardingPage} /><Route path="/app" component={DashboardPreview} /><Route path="/reset-password" component={ResetPasswordPage} /><Route component={NotFound} /></Switch></RoutedErrorBoundary>;
 }
 
 function RoutedErrorBoundary({ children }: { children: ReactNode }) {
