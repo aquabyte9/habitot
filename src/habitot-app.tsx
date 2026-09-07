@@ -38,14 +38,11 @@ import {
   Leaf,
   LayoutGrid,
   ListChecks,
-  Menu,
   Moon,
   Music2,
   Pause,
   Play,
   Plus,
-  RotateCcw,
-  Settings2,
   Sparkles,
   Sun,
   Target,
@@ -470,7 +467,7 @@ function Landing() {
           </div>
           <div className="mt-14 grid gap-6 border-t border-[#4a4238] pt-6 text-[11px] text-[#a49b8a] sm:grid-cols-3">
             <div><div className="font-mono text-flame">01</div><div className="mt-2">No account required to look around.</div></div>
-            <div><div className="font-mono text-teal">02</div><div className="mt-2">Everything here stays in this browser preview.</div></div>
+            <div><div className="font-mono text-teal">02</div><div className="mt-2">Your tasks and streak stay with your account.</div></div>
             <div><div className="font-mono text-sky">03</div><div className="mt-2">Your first check-off is waiting inside.</div></div>
           </div>
         </div>
@@ -495,9 +492,8 @@ function FeatureTile({ index, icon, title, copy, tone }: { index: string; icon: 
   return <article className="group rounded-[16px] border border-line bg-[#29241f] p-5 transition-colors hover:bg-[#332d26]"><div className="flex items-start justify-between"><span className={`grid size-10 place-items-center rounded-[11px] ${color}`}>{icon}</span><span className="font-mono text-[10px] text-[#71695f]">{index}</span></div><h3 className="mt-7 font-display text-[17px] font-semibold tracking-[-.03em]">{title}</h3><p className="mt-2 text-[13px] leading-5 text-[#9e9587]">{copy}</p></article>;
 }
 
-function AppShell({ title, view, onView, children, onReset }: { title: string; view: View; onView: (view: View) => void; children: ReactNode; onReset: () => void }) {
+function AppShell({ title, view, onView, children }: { title: string; view: View; onView: (view: View) => void; children: ReactNode }) {
   const [, setLocation] = useLocation();
-  const [menuOpen, setMenuOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
 
   const navigateHome = () => setLocation('/');
@@ -506,28 +502,24 @@ function AppShell({ title, view, onView, children, onReset }: { title: string; v
       <aside className="sticky top-0 hidden h-[100dvh] w-[244px] shrink-0 flex-col border-r border-line bg-[#25211d] px-5 py-6 lg:flex">
         <button type="button" onClick={navigateHome} className="w-fit text-left" data-testid="button-sidebar-brand"><Wordmark /></button>
         <div className="mt-12 px-3 eyebrow text-[#736b60]">Your space</div>
-        <nav className="mt-3 flex flex-col gap-1" aria-label="Preview navigation">
+        <nav className="mt-3 flex flex-col gap-1" aria-label="Main navigation">
           {navItems.map((item) => <NavButton key={item.id} item={item} active={view === item.id} onClick={() => onView(item.id)} desktop />)}
         </nav>
         <div className="mt-auto space-y-2">
           <button type="button" onClick={() => setHelpOpen((open) => !open)} className="flex w-full items-center gap-3 rounded-[11px] px-3 py-2.5 text-sm text-[#9f9688] transition-colors hover:bg-[#332d26] hover:text-cream" data-testid="button-help"><CircleHelp className="size-4" /> How Habitot works</button>
-          <button type="button" onClick={() => setMenuOpen((open) => !open)} className="flex w-full items-center gap-3 rounded-[11px] px-3 py-2.5 text-sm text-[#9f9688] transition-colors hover:bg-[#332d26] hover:text-cream" data-testid="button-settings"><Settings2 className="size-4" /> Preview settings</button>
           {helpOpen && <div className="rounded-[12px] border border-line bg-[#332d26] p-3 text-[11px] leading-5 text-[#a49b8a]">A private-feeling daily companion. Check things off, notice the rhythm, and return tomorrow.</div>}
-          {menuOpen && <div className="rounded-[12px] border border-line bg-[#332d26] p-3 text-[11px] text-[#a49b8a]"><button type="button" onClick={onReset} className="flex w-full items-center gap-2 text-left hover:text-flame" data-testid="button-reset-preview"><RotateCcw className="size-3.5" /> Reset preview data</button><button type="button" onClick={navigateHome} className="mt-3 flex w-full items-center gap-2 text-left hover:text-flame" data-testid="button-return-landing"><ArrowRight className="size-3.5" /> Return to landing</button></div>}
-          <div className="border-t border-line pt-4 font-mono text-[9px] uppercase tracking-[.14em] text-[#6f675c]">Local preview · no account</div>
         </div>
       </aside>
       <div className="min-w-0 flex-1 pb-24 lg:pb-8">
         <header className="mx-auto flex max-w-[1110px] items-center justify-between px-5 pb-2 pt-5 sm:px-8 lg:px-10 lg:pt-8">
           <div className="flex items-center gap-3 lg:hidden"><button type="button" onClick={navigateHome} data-testid="button-mobile-brand"><Wordmark compact /></button></div>
-          <div className="hidden lg:block"><div className="eyebrow text-[#796f62]">Tuesday · 14 October 2025</div><h1 className="mt-2 font-display text-2xl font-semibold tracking-[-.05em]">{title}</h1></div>
+          <div className="hidden lg:block"><div className="eyebrow text-[#796f62]">{new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</div><h1 className="mt-2 font-display text-2xl font-semibold tracking-[-.05em]">{title}</h1></div>
           <div className="ml-auto flex items-center gap-2">
             <ThemeSwitch compact />
-            <button type="button" onClick={() => setHelpOpen((open) => !open)} className="grid size-9 place-items-center rounded-full border border-line bg-[#29241f] text-[#aaa193] hover:text-cream" aria-label="Show preview note" data-testid="button-header-help"><CircleHelp className="size-4" /></button>
-            <button type="button" onClick={() => setMenuOpen((open) => !open)} className="grid size-9 place-items-center rounded-full border border-line bg-[#29241f] text-flame hover:bg-[#332d26]" aria-label="Open preview menu" data-testid="button-header-menu"><Menu className="size-4" /></button>
+            <button type="button" onClick={() => setHelpOpen((open) => !open)} className="grid size-9 place-items-center rounded-full border border-line bg-[#29241f] text-[#aaa193] hover:text-cream" aria-label="How Habitot works" data-testid="button-header-help"><CircleHelp className="size-4" /></button>
           </div>
         </header>
-        {helpOpen && <div className="mx-auto mt-3 max-w-[1110px] px-5 sm:px-8 lg:px-10"><div className="flex items-start justify-between rounded-[12px] border border-teal/25 bg-teal/10 px-4 py-3 text-[12px] leading-5 text-[#b9cfc2]">This is an interactive sample. Check off a task or switch sections; your changes live only in this preview.<button type="button" onClick={() => setHelpOpen(false)} className="ml-4 text-teal" aria-label="Dismiss preview note" data-testid="button-dismiss-help"><X className="size-4" /></button></div></div>}
+        {helpOpen && <div className="mx-auto mt-3 max-w-[1110px] px-5 sm:px-8 lg:px-10"><div className="flex items-start justify-between rounded-[12px] border border-teal/25 bg-teal/10 px-4 py-3 text-[12px] leading-5 text-[#b9cfc2]">Check off a task or switch sections — everything you do here is saved to your account.<button type="button" onClick={() => setHelpOpen(false)} className="ml-4 text-teal" aria-label="Dismiss note" data-testid="button-dismiss-help"><X className="size-4" /></button></div></div>}
         <main className="mx-auto max-w-[1110px] px-5 pt-5 sm:px-8 lg:px-10 lg:pt-7">{children}</main>
       </div>
       <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-[#25211d]/95 pb-[max(.45rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md lg:hidden" aria-label="Mobile navigation">
@@ -659,7 +651,7 @@ function AuthPanel({
 
   return <div className="mb-4 rounded-[14px] border border-flame/25 bg-flame/10 p-4" data-testid="panel-auth">
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div><div className="eyebrow text-flame">{open ? (mode === 'login' ? 'Welcome back' : 'Make it yours') : 'Free preview'}</div><p className="mt-1 text-[12px] text-[#b9aa96]">{open ? 'Save your tasks and return to them on any device.' : 'This sample is local. Sign in to make your tasks persistent.'}</p></div>
+      <div><div className="eyebrow text-flame">{open ? (mode === 'login' ? 'Welcome back' : 'Make it yours') : 'Welcome'}</div><p className="mt-1 text-[12px] text-[#b9aa96]">{open ? 'Save your tasks and return to them on any device.' : 'Sign in to keep your tasks, streak, and progress.'}</p></div>
       <button type="button" onClick={() => { onOpenChange(!open); setMessage(''); }} className="rounded-[9px] border border-flame/35 px-3 py-2 text-xs font-semibold text-flame hover:bg-flame/10" data-testid="button-auth-toggle">{open ? 'Close' : 'Sign in or sign up'}</button>
     </div>
     {open && <div className="mt-4 border-t border-flame/15 pt-4">
@@ -801,12 +793,6 @@ function LoginPage() {
   </main>;
 }
 
-function LoginRedirect() {
-  const [, setLocation] = useLocation();
-  useEffect(() => { setLocation('/login'); }, [setLocation]);
-  return <BootScreen label="Opening sign in" />;
-}
-
 function BootScreen({ label = 'Making room for your day' }: { label?: string }) {
   return <main className="grain landing-glow flex min-h-[100dvh] items-center justify-center px-6 text-cream" aria-live="polite">
     <div className="w-full max-w-[300px] text-center">
@@ -942,9 +928,6 @@ function DashboardPreview() {
     setView('dashboard');
     setLocation('/login');
   };
-  const reset = () => {
-    if (user) void hydrate(user);
-  };
   const title = navItems.find((item) => item.id === view)?.label ?? 'Overview';
   const displayName = profile?.display_name?.trim()
     || user?.user_metadata?.full_name
@@ -952,7 +935,7 @@ function DashboardPreview() {
     || user?.email?.split('@')[0]
     || 'Friend';
 
-  return <AppShell title={title} view={view} onView={setView} onReset={reset}>
+  return <AppShell title={title} view={view} onView={setView}>
     <AuthPanel user={user} open={authOpen} onOpenChange={setAuthOpen} onAuthed={hydrate} onLogout={logout} />
     {error && <div className="mb-4 rounded-[12px] border border-coral/30 bg-coral/10 px-4 py-3 text-xs text-[#f2b3a8]" role="alert">{error}</div>}
     {loading ? <DashboardLoading /> : view === 'dashboard' ? <Overview tasks={tasks} events={events} done={done} xp={xp} streak={streak} name={displayName} avatarUrl={profile?.avatar_url} onToggle={(id) => void toggleTask(id)} onView={setView} /> : view === 'tasks' ? <TasksView tasks={tasks} onToggle={(id) => void toggleTask(id)} onAdd={(value) => void addTask(value)} showComposer={showComposer} setShowComposer={setShowComposer} /> : view === 'calendar' ? <CalendarView events={events} onAdd={(event) => setEvents((current) => [...current, event])} /> : view === 'leaderboard' ? <LeaderboardView entries={leaderboard} loading={leaderboardLoading} error={leaderboardError} onRetry={() => void loadLeaderboard()} /> : view === 'profile' ? <ProfileView name={displayName} email={user?.email ?? ''} avatarUrl={profile?.avatar_url} xp={xp} streak={streak} tasksTotal={tasks.length} tasksDone={done} onLogout={() => void logout()} /> : <FocusView onSessionComplete={awardXp} />}
@@ -1270,7 +1253,7 @@ function ResetPasswordPage() {
 }
 
 function Router() {
-  return <RoutedErrorBoundary><Switch><Route path="/" component={Landing} /><Route path="/login" component={LoginPage} /><Route path="/onboarding" component={OnboardingPage} /><Route path="/app" component={DashboardPreview} /><Route path="/reset-password" component={ResetPasswordPage} /><Route path="/preview" component={LoginRedirect} /><Route component={NotFound} /></Switch></RoutedErrorBoundary>;
+  return <RoutedErrorBoundary><Switch><Route path="/" component={Landing} /><Route path="/login" component={LoginPage} /><Route path="/onboarding" component={OnboardingPage} /><Route path="/app" component={DashboardPreview} /><Route path="/reset-password" component={ResetPasswordPage} /><Route component={NotFound} /></Switch></RoutedErrorBoundary>;
 }
 
 function RoutedErrorBoundary({ children }: { children: ReactNode }) {
