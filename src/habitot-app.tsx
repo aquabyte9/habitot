@@ -497,7 +497,6 @@ function FeatureTile({ index, icon, title, copy, tone }: { index: string; icon: 
 
 function AppShell({ title, view, onView, children }: { title: string; view: View; onView: (view: View) => void; children: ReactNode }) {
   const [, setLocation] = useLocation();
-  const [menuOpen, setMenuOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
 
   const navigateHome = () => setLocation('/');
@@ -506,28 +505,24 @@ function AppShell({ title, view, onView, children }: { title: string; view: View
       <aside className="sticky top-0 hidden h-[100dvh] w-[244px] shrink-0 flex-col border-r border-line bg-[#25211d] px-5 py-6 lg:flex">
         <button type="button" onClick={navigateHome} className="w-fit text-left" data-testid="button-sidebar-brand"><Wordmark /></button>
         <div className="mt-12 px-3 eyebrow text-[#736b60]">Your space</div>
-        <nav className="mt-3 flex flex-col gap-1" aria-label="Preview navigation">
+        <nav className="mt-3 flex flex-col gap-1" aria-label="Main navigation">
           {navItems.map((item) => <NavButton key={item.id} item={item} active={view === item.id} onClick={() => onView(item.id)} desktop />)}
         </nav>
         <div className="mt-auto space-y-2">
           <button type="button" onClick={() => setHelpOpen((open) => !open)} className="flex w-full items-center gap-3 rounded-[11px] px-3 py-2.5 text-sm text-[#9f9688] transition-colors hover:bg-[#332d26] hover:text-cream" data-testid="button-help"><CircleHelp className="size-4" /> How Habitot works</button>
-          <button type="button" onClick={() => setMenuOpen((open) => !open)} className="flex w-full items-center gap-3 rounded-[11px] px-3 py-2.5 text-sm text-[#9f9688] transition-colors hover:bg-[#332d26] hover:text-cream" data-testid="button-settings"><Settings2 className="size-4" /> Preview settings</button>
           {helpOpen && <div className="rounded-[12px] border border-line bg-[#332d26] p-3 text-[11px] leading-5 text-[#a49b8a]">A private-feeling daily companion. Check things off, notice the rhythm, and return tomorrow.</div>}
-          {menuOpen && <div className="rounded-[12px] border border-line bg-[#332d26] p-3 text-[11px] text-[#a49b8a]"><button type="button" onClick={onReset} className="flex w-full items-center gap-2 text-left hover:text-flame" data-testid="button-reset-preview"><RotateCcw className="size-3.5" /> Reset preview data</button><button type="button" onClick={navigateHome} className="mt-3 flex w-full items-center gap-2 text-left hover:text-flame" data-testid="button-return-landing"><ArrowRight className="size-3.5" /> Return to landing</button></div>}
-          <div className="border-t border-line pt-4 font-mono text-[9px] uppercase tracking-[.14em] text-[#6f675c]">Local preview · no account</div>
         </div>
       </aside>
       <div className="min-w-0 flex-1 pb-24 lg:pb-8">
         <header className="mx-auto flex max-w-[1110px] items-center justify-between px-5 pb-2 pt-5 sm:px-8 lg:px-10 lg:pt-8">
           <div className="flex items-center gap-3 lg:hidden"><button type="button" onClick={navigateHome} data-testid="button-mobile-brand"><Wordmark compact /></button></div>
-          <div className="hidden lg:block"><div className="eyebrow text-[#796f62]">Tuesday · 14 October 2025</div><h1 className="mt-2 font-display text-2xl font-semibold tracking-[-.05em]">{title}</h1></div>
+          <div className="hidden lg:block"><div className="eyebrow text-[#796f62]">{new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</div><h1 className="mt-2 font-display text-2xl font-semibold tracking-[-.05em]">{title}</h1></div>
           <div className="ml-auto flex items-center gap-2">
             <ThemeSwitch compact />
-            <button type="button" onClick={() => setHelpOpen((open) => !open)} className="grid size-9 place-items-center rounded-full border border-line bg-[#29241f] text-[#aaa193] hover:text-cream" aria-label="Show preview note" data-testid="button-header-help"><CircleHelp className="size-4" /></button>
-            <button type="button" onClick={() => setMenuOpen((open) => !open)} className="grid size-9 place-items-center rounded-full border border-line bg-[#29241f] text-flame hover:bg-[#332d26]" aria-label="Open preview menu" data-testid="button-header-menu"><Menu className="size-4" /></button>
+            <button type="button" onClick={() => setHelpOpen((open) => !open)} className="grid size-9 place-items-center rounded-full border border-line bg-[#29241f] text-[#aaa193] hover:text-cream" aria-label="How Habitot works" data-testid="button-header-help"><CircleHelp className="size-4" /></button>
           </div>
         </header>
-        {helpOpen && <div className="mx-auto mt-3 max-w-[1110px] px-5 sm:px-8 lg:px-10"><div className="flex items-start justify-between rounded-[12px] border border-teal/25 bg-teal/10 px-4 py-3 text-[12px] leading-5 text-[#b9cfc2]">This is an interactive sample. Check off a task or switch sections; your changes live only in this preview.<button type="button" onClick={() => setHelpOpen(false)} className="ml-4 text-teal" aria-label="Dismiss preview note" data-testid="button-dismiss-help"><X className="size-4" /></button></div></div>}
+        {helpOpen && <div className="mx-auto mt-3 max-w-[1110px] px-5 sm:px-8 lg:px-10"><div className="flex items-start justify-between rounded-[12px] border border-teal/25 bg-teal/10 px-4 py-3 text-[12px] leading-5 text-[#b9cfc2]">Check off a task or switch sections — everything you do here is saved to your account.<button type="button" onClick={() => setHelpOpen(false)} className="ml-4 text-teal" aria-label="Dismiss note" data-testid="button-dismiss-help"><X className="size-4" /></button></div></div>}
         <main className="mx-auto max-w-[1110px] px-5 pt-5 sm:px-8 lg:px-10 lg:pt-7">{children}</main>
       </div>
       <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-[#25211d]/95 pb-[max(.45rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-md lg:hidden" aria-label="Mobile navigation">
