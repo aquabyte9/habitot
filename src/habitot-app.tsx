@@ -38,14 +38,11 @@ import {
   Leaf,
   LayoutGrid,
   ListChecks,
-  Menu,
   Moon,
   Music2,
   Pause,
   Play,
   Plus,
-  RotateCcw,
-  Settings2,
   Sparkles,
   Sun,
   Target,
@@ -794,12 +791,6 @@ function LoginPage() {
       <p className="mt-5 text-center text-xs text-[#82796d]">New here? Create an account above and we’ll ask a few gentle questions before you begin.</p>
     </div>
   </main>;
-}
-
-function LoginRedirect() {
-  const [, setLocation] = useLocation();
-  useEffect(() => { setLocation('/login'); }, [setLocation]);
-  return <BootScreen label="Opening sign in" />;
 }
 
 function BootScreen({ label = 'Making room for your day' }: { label?: string }) {
