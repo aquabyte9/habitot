@@ -495,7 +495,7 @@ function FeatureTile({ index, icon, title, copy, tone }: { index: string; icon: 
   return <article className="group rounded-[16px] border border-line bg-[#29241f] p-5 transition-colors hover:bg-[#332d26]"><div className="flex items-start justify-between"><span className={`grid size-10 place-items-center rounded-[11px] ${color}`}>{icon}</span><span className="font-mono text-[10px] text-[#71695f]">{index}</span></div><h3 className="mt-7 font-display text-[17px] font-semibold tracking-[-.03em]">{title}</h3><p className="mt-2 text-[13px] leading-5 text-[#9e9587]">{copy}</p></article>;
 }
 
-function AppShell({ title, view, onView, children, onReset }: { title: string; view: View; onView: (view: View) => void; children: ReactNode; onReset: () => void }) {
+function AppShell({ title, view, onView, children }: { title: string; view: View; onView: (view: View) => void; children: ReactNode }) {
   const [, setLocation] = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
