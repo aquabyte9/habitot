@@ -907,7 +907,7 @@ function DashboardPreview() {
     try {
       const task = user
         ? await createTask(title.trim())
-        : { id: `task-${Date.now()}`, title: title.trim(), tag: 'New', time: 'ANYTIME', xp: 16, done: false };
+        : { id: `task-${Date.now()}`, title: title.trim(), tag: 'New', time: 'ANYTIME', xp: 16, done: false, created_at: new Date().toISOString() };
       setTasks((current) => [...current, task]);
       setError('');
     } catch (createError) {
