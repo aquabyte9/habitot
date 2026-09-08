@@ -1065,8 +1065,39 @@ function EventRow({ event, last }: { event: HabitEvent; last: boolean }) {
   return <div className={`flex items-center gap-3 py-2.5 ${!last ? 'border-b border-line' : ''}`}><div className={`w-10 shrink-0 rounded-[8px] py-1.5 text-center ${tint}`}><div className="font-mono text-[8px]">{event.day}</div><div className="font-display text-lg font-semibold leading-none">{event.date}</div></div><div className="min-w-0 flex-1"><div className="truncate text-sm font-medium">{event.title}</div><div className="mt-1 flex items-center gap-1 font-mono text-[9px] text-[#82796d]"><Clock3 className="size-3" /> {event.time}</div></div></div>;
 }
 
-function RhythmCard() {
-  return <section className="rounded-[16px] border border-line bg-surface p-5" data-testid="card-weekly-rhythm"><div className="flex items-center justify-between"><div><div className="eyebrow text-[#82796d]">Last 7 days</div><h2 className="mt-2 font-display text-sm font-semibold">Your rhythm is warming up</h2></div><span className="rounded-full bg-teal/10 px-2.5 py-1 font-mono text-[9px] text-teal">+18% this week</span></div><div className="mt-6 flex h-24 items-end gap-2">{[35, 49, 42, 68, 55, 84, 71].map((height, index) => <div key={index} className="flex h-full flex-1 flex-col items-center justify-end gap-2"><div className={`w-full rounded-t-[5px] ${index === 5 ? 'bg-flame' : index === 3 ? 'bg-teal' : 'bg-[#51483e]'}`} style={{ height: `${height}%` }} /><span className="font-mono text-[8px] text-[#71695f]">{['M', 'T', 'W', 'T', 'F', 'S', 'S'][index]}</span></div>)}</div></section>;
+function RhythmCard({ tasks }: { tasks: HabitTask[] }) {
+  const today = dayKey(new Date());
+  const days = [...Array(7)].map((_, index) => {
+    const date = new Date(Date.now() - (6 - index) * 86400000);
+    const key = dayKey(date);
+    const dayTasks = tasks.filter((task) => taskDayKey(task) === key);
+    const earned = dayTasks.reduce((sum, task) => sum + (task.done ? task.xp : 0), 0);
+    return {
+      key,
+      earned,
+      completed: dayTasks.filter((task) => task.done).length,
+      letter: date.toLocaleDateString(undefined, { weekday: 'narrow' }),
+    };
+  });
+  const peak = Math.max(...days.map((day) => day.earned), 1);
+  const weekTotal = days.reduce((sum, day) => sum + day.earned, 0);
+  const activeDays = days.filter((day) => day.completed > 0).length;
+  const headline = weekTotal === 0 ? 'Your rhythm starts here' : activeDays >= 5 ? 'Your rhythm is strong' : 'Your rhythm is warming up';
+
+  return <section className="rounded-[16px] border border-line bg-surface p-5" data-testid="card-weekly-rhythm">
+    <div className="flex items-center justify-between">
+      <div><div className="eyebrow text-[#82796d]">Last 7 days</div><h2 className="mt-2 font-display text-sm font-semibold">{headline}</h2></div>
+      <span className="rounded-full bg-teal/10 px-2.5 py-1 font-mono text-[9px] text-teal" data-testid="text-rhythm-total">{weekTotal} XP this week</span>
+    </div>
+    <div className="mt-6 flex h-24 items-end gap-2">{days.map((day) => {
+      const height = day.earned === 0 ? 4 : Math.max(10, Math.round((day.earned / peak) * 100));
+      return <div key={day.key} className="flex h-full flex-1 flex-col items-center justify-end gap-2" title={`${day.completed} done · ${day.earned} XP`}>
+        <div className={`w-full rounded-t-[5px] transition-[height] duration-700 ease-out ${day.key === today ? 'bg-flame' : day.earned > 0 ? 'bg-teal' : 'bg-[#51483e]'}`} style={{ height: `${height}%` }} data-testid={`bar-rhythm-${day.key}`} />
+        <span className="font-mono text-[8px] text-[#71695f]">{day.letter}</span>
+      </div>;
+    })}</div>
+    <div className="mt-3 font-mono text-[9px] uppercase tracking-wider text-[#82796d]">{activeDays} of 7 days active</div>
+  </section>;
 }
 
 function EmptyState({ icon, title, copy, action, onClick }: { icon: ReactNode; title: string; copy: string; action: string; onClick: () => void }) {
