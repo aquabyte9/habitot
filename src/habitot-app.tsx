@@ -1020,7 +1020,7 @@ function groupTasksByDay(tasks: HabitTask[]) {
     .map(([key, items]) => ({ key, label: dayLabel(key), tasks: items }));
 }
 
-function Overview({ tasks, events, done, xp, streak, name, avatarUrl, onToggle, onView }: { tasks: HabitTask[]; events: HabitEvent[]; done: number; xp: number; streak: number; name: string; avatarUrl?: string | null | undefined; onToggle: (id: string) => void; onView: (view: View) => void }) {
+function Overview({ tasks, events, xp, streak, name, avatarUrl, onToggle, onView }: { tasks: HabitTask[]; events: HabitEvent[]; done: number; xp: number; streak: number; name: string; avatarUrl?: string | null | undefined; onToggle: (id: string) => void; onView: (view: View) => void }) {
   const today = dayKey(new Date());
   const todaysTasks = tasks.filter((task) => taskDayKey(task) === today);
   const todaysDone = todaysTasks.filter((task) => task.done).length;
@@ -1046,7 +1046,7 @@ function Overview({ tasks, events, done, xp, streak, name, avatarUrl, onToggle, 
     </div>
     <div className="grid gap-4 lg:grid-cols-[.9fr_1.1fr]">
       <section className="rounded-[16px] border border-line bg-[#332d26] p-5" data-testid="card-companion"><div className="flex items-start justify-between"><div><div className="eyebrow text-flame">A note from your companion</div><p className="mt-4 max-w-[260px] font-display text-xl font-medium leading-tight">You don't need a perfect day. Just a next thing.</p></div><MascotMark className="size-14 float-slow" /></div><button type="button" onClick={() => onView('focus')} className="mt-6 flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-flame" data-testid="button-start-focus">Make some room <ArrowRight className="size-3.5" /></button></section>
-      <RhythmCard />
+      <RhythmCard tasks={tasks} />
     </div>
   </div>;
 }
