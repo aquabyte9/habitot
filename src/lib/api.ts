@@ -34,6 +34,7 @@ export type HabitTask = {
   xp: number;
   done: boolean;
   dueDate?: string;
+  created_at?: string;
 };
 
 function asError(error: { message?: string } | null, fallback: string): Error {

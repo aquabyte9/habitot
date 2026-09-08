@@ -907,7 +907,7 @@ function DashboardPreview() {
     try {
       const task = user
         ? await createTask(title.trim())
-        : { id: `task-${Date.now()}`, title: title.trim(), tag: 'New', time: 'ANYTIME', xp: 16, done: false };
+        : { id: `task-${Date.now()}`, title: title.trim(), tag: 'New', time: 'ANYTIME', xp: 16, done: false, created_at: new Date().toISOString() };
       setTasks((current) => [...current, task]);
       setError('');
     } catch (createError) {
@@ -986,21 +986,58 @@ function LeaderboardRow({ entry, rank }: { entry: LeaderboardEntry; rank: number
   </div>;
 }
 
-function Overview({ tasks, events, done, xp, streak, name, avatarUrl, onToggle, onView }: { tasks: HabitTask[]; events: HabitEvent[]; done: number; xp: number; streak: number; name: string; avatarUrl?: string | null | undefined; onToggle: (id: string) => void; onView: (view: View) => void }) {
+/** Local YYYY-MM-DD key for a date. */
+function dayKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function taskDayKey(task: HabitTask) {
+  const raw = task.dueDate ?? task.created_at;
+  const date = raw ? new Date(raw) : new Date();
+  return dayKey(Number.isNaN(date.getTime()) ? new Date() : date);
+}
+
+function dayLabel(key: string) {
+  const date = new Date(`${key}T00:00:00`);
+  const today = dayKey(new Date());
+  const yesterday = dayKey(new Date(Date.now() - 86400000));
+  if (key === today) return 'Today';
+  if (key === yesterday) return 'Yesterday';
+  return date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' });
+}
+
+/** Groups tasks by their day, newest day first. */
+function groupTasksByDay(tasks: HabitTask[]) {
+  const groups = new Map<string, HabitTask[]>();
+  for (const task of tasks) {
+    const key = taskDayKey(task);
+    const bucket = groups.get(key);
+    if (bucket) bucket.push(task);
+    else groups.set(key, [task]);
+  }
+  return [...groups.entries()]
+    .sort((a, b) => (a[0] < b[0] ? 1 : a[0] > b[0] ? -1 : 0))
+    .map(([key, items]) => ({ key, label: dayLabel(key), tasks: items }));
+}
+
+function Overview({ tasks, events, xp, streak, name, avatarUrl, onToggle, onView }: { tasks: HabitTask[]; events: HabitEvent[]; done: number; xp: number; streak: number; name: string; avatarUrl?: string | null | undefined; onToggle: (id: string) => void; onView: (view: View) => void }) {
+  const today = dayKey(new Date());
+  const todaysTasks = tasks.filter((task) => taskDayKey(task) === today);
+  const todaysDone = todaysTasks.filter((task) => task.done).length;
   return <div className="space-y-4">
     <div className="lg:hidden"><div className="eyebrow text-[#796f62]">{new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</div><h1 className="mt-2 font-display text-2xl font-semibold tracking-[-.05em]">A good day to begin.</h1></div>
     <ProfileHeader streak={streak} xp={xp} name={name} avatarUrl={avatarUrl} />
     <div className="grid grid-cols-3 gap-3">
       <Stat value={String(tasks.filter((task) => !task.done).length).padStart(2, '0')} label="open tasks" color="coral" />
       <Stat value={String(events.length).padStart(2, '0')} label="up next" color="teal" />
-      <Stat value={String(done).padStart(2, '0')} label="done today" color="sky" />
+      <Stat value={String(todaysDone).padStart(2, '0')} label="done today" color="sky" />
     </div>
     <div className="grid gap-4 lg:grid-cols-[1.16fr_.84fr]">
       <section className="rounded-[16px] border border-line bg-surface p-4 sm:p-5" data-testid="card-today-tasks">
         <div className="mb-4 flex items-center justify-between"><div className="flex items-center gap-2"><span className="size-2 rounded-full bg-coral" /><h2 className="font-display text-sm font-semibold">Today's tasks</h2></div><button type="button" onClick={() => onView('tasks')} className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-[#91887b] hover:text-flame" data-testid="button-view-all-tasks">View all <ChevronRight className="size-3" /></button></div>
-        <div className="space-y-1">{tasks.slice(0, 4).map((task) => <TaskRow key={task.id} task={task} onToggle={onToggle} />)}</div>
-        {tasks.length === 0 && <EmptyState icon={<ListChecks className="size-5" />} title="A clear slate" copy="Add one small thing to begin." action="Add a task" onClick={() => onView('tasks')} />}
-        <div className="mt-4 border-t border-line pt-3 text-right font-mono text-[10px] text-[#82796d]">{done} of {tasks.length} complete · {tasks.reduce((sum, task) => sum + (task.done ? task.xp : 0), 0)} XP earned</div>
+        <div className="space-y-1">{todaysTasks.slice(0, 4).map((task) => <TaskRow key={task.id} task={task} onToggle={onToggle} />)}</div>
+        {todaysTasks.length === 0 && <EmptyState icon={<ListChecks className="size-5" />} title="A clear slate" copy="Add one small thing to begin." action="Add a task" onClick={() => onView('tasks')} />}
+        <div className="mt-4 border-t border-line pt-3 text-right font-mono text-[10px] text-[#82796d]">{todaysDone} of {todaysTasks.length} complete today · {todaysTasks.reduce((sum, task) => sum + (task.done ? task.xp : 0), 0)} XP earned</div>
       </section>
       <section className="rounded-[16px] border border-line bg-surface p-4 sm:p-5" data-testid="card-upcoming-events">
         <div className="mb-4 flex items-center justify-between"><div className="flex items-center gap-2"><span className="size-2 rounded-full bg-teal" /><h2 className="font-display text-sm font-semibold">Coming up</h2></div><button type="button" onClick={() => onView('calendar')} className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-[#91887b] hover:text-flame" data-testid="button-view-calendar">Calendar <ChevronRight className="size-3" /></button></div>
@@ -1009,7 +1046,7 @@ function Overview({ tasks, events, done, xp, streak, name, avatarUrl, onToggle, 
     </div>
     <div className="grid gap-4 lg:grid-cols-[.9fr_1.1fr]">
       <section className="rounded-[16px] border border-line bg-[#332d26] p-5" data-testid="card-companion"><div className="flex items-start justify-between"><div><div className="eyebrow text-flame">A note from your companion</div><p className="mt-4 max-w-[260px] font-display text-xl font-medium leading-tight">You don't need a perfect day. Just a next thing.</p></div><MascotMark className="size-14 float-slow" /></div><button type="button" onClick={() => onView('focus')} className="mt-6 flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-flame" data-testid="button-start-focus">Make some room <ArrowRight className="size-3.5" /></button></section>
-      <RhythmCard />
+      <RhythmCard tasks={tasks} />
     </div>
   </div>;
 }
@@ -1028,8 +1065,39 @@ function EventRow({ event, last }: { event: HabitEvent; last: boolean }) {
   return <div className={`flex items-center gap-3 py-2.5 ${!last ? 'border-b border-line' : ''}`}><div className={`w-10 shrink-0 rounded-[8px] py-1.5 text-center ${tint}`}><div className="font-mono text-[8px]">{event.day}</div><div className="font-display text-lg font-semibold leading-none">{event.date}</div></div><div className="min-w-0 flex-1"><div className="truncate text-sm font-medium">{event.title}</div><div className="mt-1 flex items-center gap-1 font-mono text-[9px] text-[#82796d]"><Clock3 className="size-3" /> {event.time}</div></div></div>;
 }
 
-function RhythmCard() {
-  return <section className="rounded-[16px] border border-line bg-surface p-5" data-testid="card-weekly-rhythm"><div className="flex items-center justify-between"><div><div className="eyebrow text-[#82796d]">Last 7 days</div><h2 className="mt-2 font-display text-sm font-semibold">Your rhythm is warming up</h2></div><span className="rounded-full bg-teal/10 px-2.5 py-1 font-mono text-[9px] text-teal">+18% this week</span></div><div className="mt-6 flex h-24 items-end gap-2">{[35, 49, 42, 68, 55, 84, 71].map((height, index) => <div key={index} className="flex h-full flex-1 flex-col items-center justify-end gap-2"><div className={`w-full rounded-t-[5px] ${index === 5 ? 'bg-flame' : index === 3 ? 'bg-teal' : 'bg-[#51483e]'}`} style={{ height: `${height}%` }} /><span className="font-mono text-[8px] text-[#71695f]">{['M', 'T', 'W', 'T', 'F', 'S', 'S'][index]}</span></div>)}</div></section>;
+function RhythmCard({ tasks }: { tasks: HabitTask[] }) {
+  const today = dayKey(new Date());
+  const days = [...Array(7)].map((_, index) => {
+    const date = new Date(Date.now() - (6 - index) * 86400000);
+    const key = dayKey(date);
+    const dayTasks = tasks.filter((task) => taskDayKey(task) === key);
+    const earned = dayTasks.reduce((sum, task) => sum + (task.done ? task.xp : 0), 0);
+    return {
+      key,
+      earned,
+      completed: dayTasks.filter((task) => task.done).length,
+      letter: date.toLocaleDateString(undefined, { weekday: 'narrow' }),
+    };
+  });
+  const peak = Math.max(...days.map((day) => day.earned), 1);
+  const weekTotal = days.reduce((sum, day) => sum + day.earned, 0);
+  const activeDays = days.filter((day) => day.completed > 0).length;
+  const headline = weekTotal === 0 ? 'Your rhythm starts here' : activeDays >= 5 ? 'Your rhythm is strong' : 'Your rhythm is warming up';
+
+  return <section className="rounded-[16px] border border-line bg-surface p-5" data-testid="card-weekly-rhythm">
+    <div className="flex items-center justify-between">
+      <div><div className="eyebrow text-[#82796d]">Last 7 days</div><h2 className="mt-2 font-display text-sm font-semibold">{headline}</h2></div>
+      <span className="rounded-full bg-teal/10 px-2.5 py-1 font-mono text-[9px] text-teal" data-testid="text-rhythm-total">{weekTotal} XP this week</span>
+    </div>
+    <div className="mt-6 flex h-24 items-end gap-2">{days.map((day) => {
+      const height = day.earned === 0 ? 4 : Math.max(10, Math.round((day.earned / peak) * 100));
+      return <div key={day.key} className="flex h-full flex-1 flex-col items-center justify-end gap-2" title={`${day.completed} done · ${day.earned} XP`}>
+        <div className={`w-full rounded-t-[5px] transition-[height] duration-700 ease-out ${day.key === today ? 'bg-flame' : day.earned > 0 ? 'bg-teal' : 'bg-[#51483e]'}`} style={{ height: `${height}%` }} data-testid={`bar-rhythm-${day.key}`} />
+        <span className="font-mono text-[8px] text-[#71695f]">{day.letter}</span>
+      </div>;
+    })}</div>
+    <div className="mt-3 font-mono text-[9px] uppercase tracking-wider text-[#82796d]">{activeDays} of 7 days active</div>
+  </section>;
 }
 
 function EmptyState({ icon, title, copy, action, onClick }: { icon: ReactNode; title: string; copy: string; action: string; onClick: () => void }) {
@@ -1041,7 +1109,15 @@ function TasksView({ tasks, onToggle, onAdd, showComposer, setShowComposer }: { 
   const submit = () => { onAdd(title); setTitle(''); };
   return <div className="max-w-[760px] space-y-4" data-testid="view-tasks"><div className="flex items-end justify-between"><div><div className="eyebrow text-coral">Keep it light</div><h2 className="mt-2 font-display text-3xl font-semibold tracking-[-.06em]">The task shelf</h2><p className="mt-2 text-sm text-[#9f9688]">Small enough to start. Specific enough to finish.</p></div><button type="button" onClick={() => setShowComposer(!showComposer)} className="press grid size-10 place-items-center rounded-[11px] bg-flame text-ink" aria-label="Add a task" data-testid="button-add-task"><Plus className="size-5" /></button></div>
     {showComposer && <div className="flex gap-2 rounded-[14px] border border-flame/30 bg-flame/10 p-3"><input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') submit(); }} placeholder="What would feel good to finish?" className="min-w-0 flex-1 bg-transparent px-2 text-sm text-cream outline-none placeholder:text-[#8f8678]" data-testid="input-new-task" /><button type="button" onClick={submit} className="rounded-[9px] bg-flame px-3 py-2 text-xs font-semibold text-ink" data-testid="button-save-task">Add task</button><button type="button" onClick={() => setShowComposer(false)} className="grid size-8 place-items-center text-[#a49b8a]" aria-label="Cancel adding task" data-testid="button-cancel-task"><X className="size-4" /></button></div>}
-    <section className="rounded-[16px] border border-line bg-surface p-4 sm:p-5"><div className="mb-3 flex justify-between border-b border-line pb-3 font-mono text-[10px] uppercase tracking-wider text-[#82796d]"><span>{tasks.length} intentions</span><span>{tasks.filter((task) => task.done).length} complete</span></div>{tasks.length ? <div className="divide-y divide-[#494138]">{tasks.map((task) => <TaskRow key={task.id} task={task} onToggle={onToggle} />)}</div> : <EmptyState icon={<ListChecks className="size-5" />} title="Your shelf is empty" copy="Add the first small promise." action="Add a task" onClick={() => setShowComposer(true)} />}</section>
+    {tasks.length === 0
+      ? <section className="rounded-[16px] border border-line bg-surface p-4 sm:p-5"><EmptyState icon={<ListChecks className="size-5" />} title="Your shelf is empty" copy="Add the first small promise." action="Add a task" onClick={() => setShowComposer(true)} /></section>
+      : groupTasksByDay(tasks).map((group) => <section key={group.key} className="rounded-[16px] border border-line bg-surface p-4 sm:p-5" data-testid={`card-task-day-${group.key}`}>
+        <div className="mb-3 flex items-center justify-between border-b border-line pb-3">
+          <h3 className="font-display text-sm font-semibold" data-testid={`text-task-day-${group.key}`}>{group.label}</h3>
+          <span className="font-mono text-[10px] uppercase tracking-wider text-[#82796d]">{group.tasks.filter((task) => task.done).length}/{group.tasks.length} done · {group.tasks.reduce((sum, task) => sum + (task.done ? task.xp : 0), 0)} XP</span>
+        </div>
+        <div className="divide-y divide-[#494138]">{group.tasks.map((task) => <TaskRow key={task.id} task={task} onToggle={onToggle} />)}</div>
+      </section>)}
   </div>;
 }
 
