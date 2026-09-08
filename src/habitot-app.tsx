@@ -986,7 +986,44 @@ function LeaderboardRow({ entry, rank }: { entry: LeaderboardEntry; rank: number
   </div>;
 }
 
+/** Local YYYY-MM-DD key for a date. */
+function dayKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function taskDayKey(task: HabitTask) {
+  const raw = task.dueDate ?? task.created_at;
+  const date = raw ? new Date(raw) : new Date();
+  return dayKey(Number.isNaN(date.getTime()) ? new Date() : date);
+}
+
+function dayLabel(key: string) {
+  const date = new Date(`${key}T00:00:00`);
+  const today = dayKey(new Date());
+  const yesterday = dayKey(new Date(Date.now() - 86400000));
+  if (key === today) return 'Today';
+  if (key === yesterday) return 'Yesterday';
+  return date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' });
+}
+
+/** Groups tasks by their day, newest day first. */
+function groupTasksByDay(tasks: HabitTask[]) {
+  const groups = new Map<string, HabitTask[]>();
+  for (const task of tasks) {
+    const key = taskDayKey(task);
+    const bucket = groups.get(key);
+    if (bucket) bucket.push(task);
+    else groups.set(key, [task]);
+  }
+  return [...groups.entries()]
+    .sort((a, b) => (a[0] < b[0] ? 1 : a[0] > b[0] ? -1 : 0))
+    .map(([key, items]) => ({ key, label: dayLabel(key), tasks: items }));
+}
+
 function Overview({ tasks, events, done, xp, streak, name, avatarUrl, onToggle, onView }: { tasks: HabitTask[]; events: HabitEvent[]; done: number; xp: number; streak: number; name: string; avatarUrl?: string | null | undefined; onToggle: (id: string) => void; onView: (view: View) => void }) {
+  const today = dayKey(new Date());
+  const todaysTasks = tasks.filter((task) => taskDayKey(task) === today);
+  const todaysDone = todaysTasks.filter((task) => task.done).length;
   return <div className="space-y-4">
     <div className="lg:hidden"><div className="eyebrow text-[#796f62]">{new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</div><h1 className="mt-2 font-display text-2xl font-semibold tracking-[-.05em]">A good day to begin.</h1></div>
     <ProfileHeader streak={streak} xp={xp} name={name} avatarUrl={avatarUrl} />
