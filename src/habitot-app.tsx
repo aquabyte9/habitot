@@ -6,6 +6,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import {
   createTask,
+  deleteTask,
   getAccount,
   getLeaderboard,
   getSession,
@@ -35,6 +36,7 @@ import {
   CircleHelp,
   Clock3,
   Flame,
+  GripVertical,
   Leaf,
   LayoutGrid,
   ListChecks,
@@ -46,6 +48,7 @@ import {
   Sparkles,
   Sun,
   Target,
+  Trash2,
   Trophy,
   User as UserIcon,
   Volume2,
