@@ -1183,27 +1183,70 @@ function CalendarView({ events, onAdd }: { events: HabitEvent[]; onAdd: (event: 
 function FocusView({ onSessionComplete }: { onSessionComplete: (xp: number) => void }) {
   const SESSION = 25 * 60;
   const SESSION_XP = 25;
-  const [running, setRunning] = useState(false);
-  const [seconds, setSeconds] = useState(SESSION);
+  const STORE_KEY = 'habitot-focus';
+  const [endsAt, setEndsAt] = useState<number | null>(null);
+  const [paused, setPaused] = useState(SESSION);
   const [sessions, setSessions] = useState(0);
   const [earned, setEarned] = useState(0);
+  const [tick, setTick] = useState(() => Date.now());
   const [link, setLink] = useState('');
   const { load, error, track, playing, toggle, stop } = usePlayer();
 
+  // Restore a session that was left running while the app was closed or in another tab.
   useEffect(() => {
-    if (!running) return;
-    const timer = window.setInterval(() => setSeconds((value) => {
-      if (value > 1) return value - 1;
-      window.setTimeout(() => {
-        setRunning(false);
-        setSessions((count) => count + 1);
-        setEarned((total) => total + SESSION_XP);
-        onSessionComplete(SESSION_XP);
-      }, 0);
-      return SESSION;
-    }), 1000);
-    return () => window.clearInterval(timer);
-  }, [running, onSessionComplete]);
+    try {
+      const raw = window.localStorage.getItem(STORE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as { endsAt?: number | null; paused?: number; sessions?: number; earned?: number };
+      setSessions(Math.max(0, Number(saved.sessions ?? 0)));
+      setEarned(Math.max(0, Number(saved.earned ?? 0)));
+      if (saved.endsAt && saved.endsAt > Date.now()) setEndsAt(saved.endsAt);
+      else setPaused(Math.max(0, Math.min(SESSION, Number(saved.paused ?? SESSION))) || SESSION);
+    } catch {
+      /* ignore a corrupt saved session */
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(STORE_KEY, JSON.stringify({ endsAt, paused, sessions, earned }));
+  }, [endsAt, paused, sessions, earned]);
+
+  // A wall-clock end time keeps counting down while the tab is hidden or the app is minimised.
+  useEffect(() => {
+    if (endsAt === null) return;
+    const timer = window.setInterval(() => setTick(Date.now()), 500);
+    const resync = () => setTick(Date.now());
+    window.addEventListener('visibilitychange', resync);
+    window.addEventListener('focus', resync);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('visibilitychange', resync);
+      window.removeEventListener('focus', resync);
+    };
+  }, [endsAt]);
+
+  const seconds = endsAt === null ? paused : Math.max(0, Math.ceil((endsAt - tick) / 1000));
+  const running = endsAt !== null;
+
+  useEffect(() => {
+    if (endsAt === null || seconds > 0) return;
+    setEndsAt(null);
+    setPaused(SESSION);
+    setSessions((count) => count + 1);
+    setEarned((total) => total + SESSION_XP);
+    onSessionComplete(SESSION_XP);
+  }, [endsAt, seconds, onSessionComplete]);
+
+  const startOrPause = () => {
+    if (endsAt === null) {
+      const base = seconds > 0 ? seconds : SESSION;
+      setTick(Date.now());
+      setEndsAt(Date.now() + base * 1000);
+    } else {
+      setPaused(seconds);
+      setEndsAt(null);
+    }
+  };
 
   const minutes = String(Math.floor(seconds / 60)).padStart(2, '0');
   const remaining = String(seconds % 60).padStart(2, '0');
@@ -1217,9 +1260,9 @@ function FocusView({ onSessionComplete }: { onSessionComplete: (xp: number) => v
         <div className="mx-auto grid size-16 place-items-center rounded-[17px] bg-teal/15 text-teal"><Music2 className="size-7" /></div>
         <div className="eyebrow mt-7 text-[#9dbbb0]">Quiet room · 25 minute session</div>
         <div className="mt-5 font-mono text-[clamp(4rem,13vw,7rem)] leading-none tracking-[-.08em] text-cream" data-testid="text-focus-timer">{minutes}:{remaining}</div>
-        <div className="mt-4 text-sm text-[#a9bdb3]">A good place to put one thing down.</div>
-        <button type="button" onClick={() => setRunning(!running)} className="press mt-8 rounded-[11px] bg-flame px-6 py-3 text-sm font-semibold text-ink" data-testid="button-toggle-focus">{running ? 'Pause the room' : 'Start a focus session'}</button>
-        <button type="button" onClick={() => { setRunning(false); setSeconds(SESSION); }} className="ml-3 rounded-[11px] border border-[#536760] px-4 py-3 text-sm text-[#b5c8be] hover:bg-[#33433e]" data-testid="button-reset-focus">Reset</button>
+        <div className="mt-4 text-sm text-[#a9bdb3]">A good place to put one thing down.{running ? ' It keeps running if you leave or minimise the app.' : ''}</div>
+        <button type="button" onClick={startOrPause} className="press mt-8 rounded-[11px] bg-flame px-6 py-3 text-sm font-semibold text-ink" data-testid="button-toggle-focus">{running ? 'Pause the room' : 'Start a focus session'}</button>
+        <button type="button" onClick={() => { setEndsAt(null); setPaused(SESSION); }} className="ml-3 rounded-[11px] border border-[#536760] px-4 py-3 text-sm text-[#b5c8be] hover:bg-[#33433e]" data-testid="button-reset-focus">Reset</button>
       </div>
     </section>
 
