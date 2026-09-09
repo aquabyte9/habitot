@@ -236,10 +236,51 @@ function PlayerProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(() => ({ track, playing, volume, error, load, toggle, stop, setVolume }), [track, playing, volume, error, load, toggle, stop, setVolume]);
 
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+  const dragRef = useRef<{ dx: number; dy: number } | null>(null);
+
+  const startDrag = (event: React.PointerEvent) => {
+    const panel = panelRef.current;
+    if (!panel) return;
+    const box = panel.getBoundingClientRect();
+    dragRef.current = { dx: event.clientX - box.left, dy: event.clientY - box.top };
+    setPosition({ x: box.left, y: box.top });
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const onDrag = (event: React.PointerEvent) => {
+    const drag = dragRef.current;
+    const panel = panelRef.current;
+    if (!drag || !panel) return;
+    const box = panel.getBoundingClientRect();
+    const x = Math.min(Math.max(8, event.clientX - drag.dx), Math.max(8, window.innerWidth - box.width - 8));
+    const y = Math.min(Math.max(8, event.clientY - drag.dy), Math.max(8, window.innerHeight - box.height - 8));
+    setPosition({ x, y });
+  };
+
+  const endDrag = () => { dragRef.current = null; };
+
   return <PlayerContext.Provider value={value}>
     {children}
-    {track && <div className="fade-up fixed inset-x-0 bottom-[74px] z-30 px-3 lg:bottom-4 lg:left-auto lg:right-4 lg:w-[430px] lg:px-0" data-testid="player-sticky">
-      <div className="flex items-center gap-3 rounded-[14px] border border-line bg-raised/95 p-2.5 shadow-lg backdrop-blur-md">
+    {track && <div
+      ref={panelRef}
+      className={position ? 'fade-up fixed z-30 w-[min(430px,calc(100vw-16px))] touch-none' : 'fade-up fixed inset-x-0 bottom-[74px] z-30 px-3 lg:bottom-4 lg:left-auto lg:right-4 lg:w-[430px] lg:px-0'}
+      style={position ? { left: position.x, top: position.y } : undefined}
+      data-testid="player-sticky"
+    >
+      <div className="flex items-center gap-2 rounded-[14px] border border-line bg-raised/95 p-2.5 shadow-lg backdrop-blur-md">
+        <button
+          type="button"
+          onPointerDown={startDrag}
+          onPointerMove={onDrag}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
+          onDoubleClick={() => setPosition(null)}
+          aria-label="Move the player. Double click to snap it back."
+          className="grid size-7 shrink-0 cursor-grab touch-none place-items-center rounded-[8px] text-[#82796d] hover:text-cream active:cursor-grabbing"
+          data-testid="button-player-drag"
+        ><GripVertical className="size-4" /></button>
         {track.kind === 'audio' ? <>
           <audio ref={audioRef} src={track.src} onEnded={() => setPlaying(false)} onError={() => setError('That audio link would not load.')} />
           <button type="button" onClick={toggle} className="press grid size-10 shrink-0 place-items-center rounded-full bg-flame text-ink" aria-label={playing ? 'Pause' : 'Play'} data-testid="button-player-toggle">{playing ? <Pause className="size-4" fill="currentColor" /> : <Play className="size-4" fill="currentColor" />}</button>
