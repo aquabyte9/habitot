@@ -918,6 +918,17 @@ function DashboardPreview() {
     }
     setShowComposer(false);
   };
+  const removeTask = async (id: string) => {
+    const previous = tasks;
+    setTasks((current) => current.filter((item) => item.id !== id));
+    if (!user) return;
+    try {
+      await deleteTask(id);
+    } catch (deleteError) {
+      setTasks(previous);
+      setError(deleteError instanceof Error ? deleteError.message : 'Unable to delete that task.');
+    }
+  };
   const logout = async () => {
     await signOut();
     setUser(null);
@@ -941,7 +952,7 @@ function DashboardPreview() {
   return <AppShell title={title} view={view} onView={setView}>
     <AuthPanel user={user} open={authOpen} onOpenChange={setAuthOpen} onAuthed={hydrate} onLogout={logout} />
     {error && <div className="mb-4 rounded-[12px] border border-coral/30 bg-coral/10 px-4 py-3 text-xs text-[#f2b3a8]" role="alert">{error}</div>}
-    {loading ? <DashboardLoading /> : view === 'dashboard' ? <Overview tasks={tasks} events={events} done={done} xp={xp} streak={streak} name={displayName} avatarUrl={profile?.avatar_url} onToggle={(id) => void toggleTask(id)} onView={setView} /> : view === 'tasks' ? <TasksView tasks={tasks} onToggle={(id) => void toggleTask(id)} onAdd={(value) => void addTask(value)} showComposer={showComposer} setShowComposer={setShowComposer} /> : view === 'calendar' ? <CalendarView events={events} onAdd={(event) => setEvents((current) => [...current, event])} /> : view === 'leaderboard' ? <LeaderboardView entries={leaderboard} loading={leaderboardLoading} error={leaderboardError} onRetry={() => void loadLeaderboard()} /> : view === 'profile' ? <ProfileView name={displayName} email={user?.email ?? ''} avatarUrl={profile?.avatar_url} xp={xp} streak={streak} tasksTotal={tasks.length} tasksDone={done} onLogout={() => void logout()} /> : <FocusView onSessionComplete={awardXp} />}
+    {loading ? <DashboardLoading /> : view === 'dashboard' ? <Overview tasks={tasks} events={events} done={done} xp={xp} streak={streak} name={displayName} avatarUrl={profile?.avatar_url} onToggle={(id) => void toggleTask(id)} onDelete={(id) => void removeTask(id)} onView={setView} /> : view === 'tasks' ? <TasksView tasks={tasks} onToggle={(id) => void toggleTask(id)} onDelete={(id) => void removeTask(id)} onAdd={(value) => void addTask(value)} showComposer={showComposer} setShowComposer={setShowComposer} /> : view === 'calendar' ? <CalendarView events={events} onAdd={(event) => setEvents((current) => [...current, event])} /> : view === 'leaderboard' ? <LeaderboardView entries={leaderboard} loading={leaderboardLoading} error={leaderboardError} onRetry={() => void loadLeaderboard()} /> : view === 'profile' ? <ProfileView name={displayName} email={user?.email ?? ''} avatarUrl={profile?.avatar_url} xp={xp} streak={streak} tasksTotal={tasks.length} tasksDone={done} onLogout={() => void logout()} /> : <FocusView onSessionComplete={awardXp} />}
   </AppShell>;
 }
 
@@ -1009,6 +1020,16 @@ function dayLabel(key: string) {
   return date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' });
 }
 
+/** Newest task first, using when it was created. */
+function sortNewestFirst(tasks: HabitTask[]) {
+  return [...tasks].sort((a, b) => {
+    const at = new Date(a.created_at ?? a.dueDate ?? 0).getTime();
+    const bt = new Date(b.created_at ?? b.dueDate ?? 0).getTime();
+    if (bt !== at) return bt - at;
+    return a.id < b.id ? 1 : a.id > b.id ? -1 : 0;
+  });
+}
+
 /** Groups tasks by their day, newest day first. */
 function groupTasksByDay(tasks: HabitTask[]) {
   const groups = new Map<string, HabitTask[]>();
@@ -1020,12 +1041,12 @@ function groupTasksByDay(tasks: HabitTask[]) {
   }
   return [...groups.entries()]
     .sort((a, b) => (a[0] < b[0] ? 1 : a[0] > b[0] ? -1 : 0))
-    .map(([key, items]) => ({ key, label: dayLabel(key), tasks: items }));
+    .map(([key, items]) => ({ key, label: dayLabel(key), tasks: sortNewestFirst(items) }));
 }
 
-function Overview({ tasks, events, xp, streak, name, avatarUrl, onToggle, onView }: { tasks: HabitTask[]; events: HabitEvent[]; done: number; xp: number; streak: number; name: string; avatarUrl?: string | null | undefined; onToggle: (id: string) => void; onView: (view: View) => void }) {
+function Overview({ tasks, events, xp, streak, name, avatarUrl, onToggle, onDelete, onView }: { tasks: HabitTask[]; events: HabitEvent[]; done: number; xp: number; streak: number; name: string; avatarUrl?: string | null | undefined; onToggle: (id: string) => void; onDelete: (id: string) => void; onView: (view: View) => void }) {
   const today = dayKey(new Date());
-  const todaysTasks = tasks.filter((task) => taskDayKey(task) === today);
+  const todaysTasks = sortNewestFirst(tasks.filter((task) => taskDayKey(task) === today));
   const todaysDone = todaysTasks.filter((task) => task.done).length;
   return <div className="space-y-4">
     <div className="lg:hidden"><div className="eyebrow text-[#796f62]">{new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</div><h1 className="mt-2 font-display text-2xl font-semibold tracking-[-.05em]">A good day to begin.</h1></div>
@@ -1038,7 +1059,7 @@ function Overview({ tasks, events, xp, streak, name, avatarUrl, onToggle, onView
     <div className="grid gap-4 lg:grid-cols-[1.16fr_.84fr]">
       <section className="rounded-[16px] border border-line bg-surface p-4 sm:p-5" data-testid="card-today-tasks">
         <div className="mb-4 flex items-center justify-between"><div className="flex items-center gap-2"><span className="size-2 rounded-full bg-coral" /><h2 className="font-display text-sm font-semibold">Today's tasks</h2></div><button type="button" onClick={() => onView('tasks')} className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-[#91887b] hover:text-flame" data-testid="button-view-all-tasks">View all <ChevronRight className="size-3" /></button></div>
-        <div className="space-y-1">{todaysTasks.slice(0, 4).map((task) => <TaskRow key={task.id} task={task} onToggle={onToggle} />)}</div>
+        <div className="space-y-1">{todaysTasks.slice(0, 4).map((task) => <TaskRow key={task.id} task={task} onToggle={onToggle} onDelete={onDelete} />)}</div>
         {todaysTasks.length === 0 && <EmptyState icon={<ListChecks className="size-5" />} title="A clear slate" copy="Add one small thing to begin." action="Add a task" onClick={() => onView('tasks')} />}
         <div className="mt-4 border-t border-line pt-3 text-right font-mono text-[10px] text-[#82796d]">{todaysDone} of {todaysTasks.length} complete today · {todaysTasks.reduce((sum, task) => sum + (task.done ? task.xp : 0), 0)} XP earned</div>
       </section>
@@ -1059,8 +1080,20 @@ function Stat({ value, label, color }: { value: string; label: string; color: 'c
   return <div className="rounded-[14px] border border-line bg-surface p-3 sm:p-4"><div className="font-display text-2xl font-semibold tracking-[-.06em]">{value}</div><div className="mt-1.5 font-mono text-[9px] uppercase tracking-[.12em] text-[#82796d]">{label}</div><div className="mt-3 h-1 overflow-hidden rounded-full bg-[#433b32]"><div className={`h-full w-2/3 rounded-full ${className}`} /></div></div>;
 }
 
-function TaskRow({ task, onToggle }: { task: HabitTask; onToggle: (id: string) => void }) {
-  return <div className="flex items-center gap-3 rounded-[10px] px-1 py-2.5 transition-colors hover:bg-[#332d26]"><button type="button" aria-pressed={task.done} aria-label={`${task.done ? 'Mark incomplete' : 'Mark complete'}: ${task.title}`} onClick={() => onToggle(task.id)} className={`grid size-5 shrink-0 place-items-center rounded-[5px] border-2 transition-colors ${task.done ? 'border-coral bg-coral text-ink' : 'border-[#675b4c] hover:border-coral'}`} data-testid={`button-toggle-task-${task.id}`}>{task.done && <Check className="check-pop size-3.5" strokeWidth={3} />}</button><span className={`min-w-0 flex-1 text-sm ${task.done ? 'strike-line' : ''}`}>{task.title}</span><span className="hidden font-mono text-[9px] uppercase text-[#82796d] sm:inline">{task.time}</span><span className="font-mono text-[10px] text-flame">+{task.xp}</span></div>;
+function TaskRow({ task, onToggle, onDelete }: { task: HabitTask; onToggle: (id: string) => void; onDelete?: (id: string) => void }) {
+  const [confirming, setConfirming] = useState(false);
+  return <div className="group flex items-center gap-3 rounded-[10px] px-1 py-2.5 transition-colors hover:bg-[#332d26]">
+    <button type="button" aria-pressed={task.done} aria-label={`${task.done ? 'Mark incomplete' : 'Mark complete'}: ${task.title}`} onClick={() => onToggle(task.id)} className={`grid size-5 shrink-0 place-items-center rounded-[5px] border-2 transition-colors ${task.done ? 'border-coral bg-coral text-ink' : 'border-[#675b4c] hover:border-coral'}`} data-testid={`button-toggle-task-${task.id}`}>{task.done && <Check className="check-pop size-3.5" strokeWidth={3} />}</button>
+    <span className={`min-w-0 flex-1 text-sm ${task.done ? 'strike-line' : ''}`}>{task.title}</span>
+    <span className="hidden font-mono text-[9px] uppercase text-[#82796d] sm:inline">{task.time}</span>
+    <span className="font-mono text-[10px] text-flame">+{task.xp}</span>
+    {onDelete && (confirming
+      ? <span className="flex shrink-0 items-center gap-1">
+        <button type="button" onClick={() => { setConfirming(false); onDelete(task.id); }} className="press rounded-[8px] bg-coral px-2 py-1 text-[10px] font-semibold text-ink" data-testid={`button-confirm-delete-task-${task.id}`}>Delete</button>
+        <button type="button" onClick={() => setConfirming(false)} className="press rounded-[8px] border border-line px-2 py-1 text-[10px] text-[#a49b8a]" data-testid={`button-cancel-delete-task-${task.id}`}>Keep</button>
+      </span>
+      : <button type="button" onClick={() => setConfirming(true)} aria-label={`Delete task: ${task.title}`} className="press grid size-7 shrink-0 place-items-center rounded-[8px] text-[#82796d] opacity-70 transition-colors hover:bg-coral/10 hover:text-coral focus-visible:opacity-100 group-hover:opacity-100" data-testid={`button-delete-task-${task.id}`}><Trash2 className="size-3.5" /></button>)}
+  </div>;
 }
 
 function EventRow({ event, last }: { event: HabitEvent; last: boolean }) {
@@ -1107,7 +1140,7 @@ function EmptyState({ icon, title, copy, action, onClick }: { icon: ReactNode; t
   return <div className="rounded-[12px] border border-dashed border-line px-4 py-7 text-center"><div className="mx-auto grid size-10 place-items-center rounded-full bg-[#332d26] text-[#91887b]">{icon}</div><div className="mt-3 text-sm font-medium">{title}</div><p className="mt-1 text-xs text-[#82796d]">{copy}</p><button type="button" onClick={onClick} className="mt-4 text-xs font-medium text-flame hover:text-cream" data-testid={`button-empty-${action.toLowerCase().replaceAll(' ', '-')}`}>{action} <ArrowRight className="ml-1 inline size-3" /></button></div>;
 }
 
-function TasksView({ tasks, onToggle, onAdd, showComposer, setShowComposer }: { tasks: HabitTask[]; onToggle: (id: string) => void; onAdd: (title: string) => void; showComposer: boolean; setShowComposer: (show: boolean) => void }) {
+function TasksView({ tasks, onToggle, onDelete, onAdd, showComposer, setShowComposer }: { tasks: HabitTask[]; onToggle: (id: string) => void; onDelete: (id: string) => void; onAdd: (title: string) => void; showComposer: boolean; setShowComposer: (show: boolean) => void }) {
   const [title, setTitle] = useState('');
   const submit = () => { onAdd(title); setTitle(''); };
   return <div className="max-w-[760px] space-y-4" data-testid="view-tasks"><div className="flex items-end justify-between"><div><div className="eyebrow text-coral">Keep it light</div><h2 className="mt-2 font-display text-3xl font-semibold tracking-[-.06em]">The task shelf</h2><p className="mt-2 text-sm text-[#9f9688]">Small enough to start. Specific enough to finish.</p></div><button type="button" onClick={() => setShowComposer(!showComposer)} className="press grid size-10 place-items-center rounded-[11px] bg-flame text-ink" aria-label="Add a task" data-testid="button-add-task"><Plus className="size-5" /></button></div>
@@ -1119,7 +1152,7 @@ function TasksView({ tasks, onToggle, onAdd, showComposer, setShowComposer }: { 
           <h3 className="font-display text-sm font-semibold" data-testid={`text-task-day-${group.key}`}>{group.label}</h3>
           <span className="font-mono text-[10px] uppercase tracking-wider text-[#82796d]">{group.tasks.filter((task) => task.done).length}/{group.tasks.length} done · {group.tasks.reduce((sum, task) => sum + (task.done ? task.xp : 0), 0)} XP</span>
         </div>
-        <div className="divide-y divide-[#494138]">{group.tasks.map((task) => <TaskRow key={task.id} task={task} onToggle={onToggle} />)}</div>
+        <div className="divide-y divide-[#494138]">{group.tasks.map((task) => <TaskRow key={task.id} task={task} onToggle={onToggle} onDelete={onDelete} />)}</div>
       </section>)}
   </div>;
 }
