@@ -1,4 +1,4 @@
-import { createContext, type ReactNode, useContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, type PointerEvent as ReactPointerEvent, type ReactNode, useContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -240,7 +240,7 @@ function PlayerProvider({ children }: { children: ReactNode }) {
   const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const dragRef = useRef<{ dx: number; dy: number } | null>(null);
 
-  const startDrag = (event: React.PointerEvent) => {
+  const startDrag = (event: ReactPointerEvent) => {
     const panel = panelRef.current;
     if (!panel) return;
     const box = panel.getBoundingClientRect();
@@ -249,7 +249,7 @@ function PlayerProvider({ children }: { children: ReactNode }) {
     event.currentTarget.setPointerCapture(event.pointerId);
   };
 
-  const onDrag = (event: React.PointerEvent) => {
+  const onDrag = (event: ReactPointerEvent) => {
     const drag = dragRef.current;
     const panel = panelRef.current;
     if (!drag || !panel) return;
