@@ -176,11 +176,7 @@ export async function updateProfile(input: {
 }
 
 export async function getLeaderboard() {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('display_name, avatar_url, xp, streak_days')
-    .order('xp', { ascending: false })
-    .limit(50);
+  const { data, error } = await supabase.rpc('get_leaderboard');
   if (error) throw asError(error, 'Unable to load the leaderboard.');
   return (data ?? []) as LeaderboardEntry[];
 }
