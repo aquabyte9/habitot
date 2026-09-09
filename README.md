@@ -1,24 +1,34 @@
-# Habitot
+# 🐾 Habitot
 
-show me a preview of the app
+**Keep the streak. Run your day.**
 
-This project was built with [Lovable](https://lovable.dev).
+Habitot is a habit and task companion designed to make small, everyday wins feel like they matter. Inspired by Duolingo's streak-driven momentum, it brings together task tracking, a calendar, and focus music into one warm, game-like dashboard — built to help you protect the small promises you make to yourself.
 
-## Build with Lovable
+## ✨ Features
 
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/9a7336bf-3883-442c-8ce8-15b0768e251d).
+- **Tasks with XP** — every completed task earns XP toward your level, turning your to-do list into visible progress
+- **Streaks** — a daily streak counter that keeps your momentum in view without guilt-tripping you when you miss a day
+- **Calendar** — a clean view of what's ahead, without turning your life into a spreadsheet
+- **Focus Music** — bring your own playlist or ambient sound right into the app for deep work sessions
+- **Companion mascot** — a small, friendly presence that nudges and celebrates, but knows when to stay quiet
+- **Smooth animations** — level-ups, task completions, and streak milestones all get their own moment of polish
+- **Installable app** — available as a native Android APK, no browser tab required
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+## 📱 Getting the app
 
-## Development
+Grab the latest `.apk` from the [Releases](../../releases) page and install it on any Android device (enable "install from unknown sources" if prompted the first time).
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+## 🛠 Tech Stack
 
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
-```
+- Built with [Replit](https://replit.com) and [Lovable](https://lovable.dev)
+- React + Tailwind CSS
+- Supabase for backend/data
+- Wrapped as a native Android app via [Median](https://median.co)
+
+## 🚧 Status
+
+This is an early, actively evolving project. Expect frequent changes as features get refined.
+
+---
+
+*A small space for a life in progress.*
