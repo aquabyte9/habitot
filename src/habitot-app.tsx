@@ -1,4 +1,4 @@
-import { createContext, type ReactNode, useContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, type PointerEvent as ReactPointerEvent, type ReactNode, useContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -6,6 +6,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
 import {
   createTask,
+  deleteTask,
   getAccount,
   getLeaderboard,
   getSession,
@@ -35,6 +36,7 @@ import {
   CircleHelp,
   Clock3,
   Flame,
+  GripVertical,
   Leaf,
   LayoutGrid,
   ListChecks,
@@ -46,6 +48,7 @@ import {
   Sparkles,
   Sun,
   Target,
+  Trash2,
   Trophy,
   User as UserIcon,
   Volume2,
@@ -233,10 +236,51 @@ function PlayerProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(() => ({ track, playing, volume, error, load, toggle, stop, setVolume }), [track, playing, volume, error, load, toggle, stop, setVolume]);
 
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
+  const dragRef = useRef<{ dx: number; dy: number } | null>(null);
+
+  const startDrag = (event: ReactPointerEvent) => {
+    const panel = panelRef.current;
+    if (!panel) return;
+    const box = panel.getBoundingClientRect();
+    dragRef.current = { dx: event.clientX - box.left, dy: event.clientY - box.top };
+    setPosition({ x: box.left, y: box.top });
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const onDrag = (event: ReactPointerEvent) => {
+    const drag = dragRef.current;
+    const panel = panelRef.current;
+    if (!drag || !panel) return;
+    const box = panel.getBoundingClientRect();
+    const x = Math.min(Math.max(8, event.clientX - drag.dx), Math.max(8, window.innerWidth - box.width - 8));
+    const y = Math.min(Math.max(8, event.clientY - drag.dy), Math.max(8, window.innerHeight - box.height - 8));
+    setPosition({ x, y });
+  };
+
+  const endDrag = () => { dragRef.current = null; };
+
   return <PlayerContext.Provider value={value}>
     {children}
-    {track && <div className="fade-up fixed inset-x-0 bottom-[74px] z-30 px-3 lg:bottom-4 lg:left-auto lg:right-4 lg:w-[430px] lg:px-0" data-testid="player-sticky">
-      <div className="flex items-center gap-3 rounded-[14px] border border-line bg-raised/95 p-2.5 shadow-lg backdrop-blur-md">
+    {track && <div
+      ref={panelRef}
+      className={position ? 'fade-up fixed z-30 w-[min(430px,calc(100vw-16px))] touch-none' : 'fade-up fixed inset-x-0 bottom-[74px] z-30 px-3 lg:bottom-4 lg:left-auto lg:right-4 lg:w-[430px] lg:px-0'}
+      style={position ? { left: position.x, top: position.y } : undefined}
+      data-testid="player-sticky"
+    >
+      <div className="flex items-center gap-2 rounded-[14px] border border-line bg-raised/95 p-2.5 shadow-lg backdrop-blur-md">
+        <button
+          type="button"
+          onPointerDown={startDrag}
+          onPointerMove={onDrag}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
+          onDoubleClick={() => setPosition(null)}
+          aria-label="Move the player. Double click to snap it back."
+          className="grid size-7 shrink-0 cursor-grab touch-none place-items-center rounded-[8px] text-[#82796d] hover:text-cream active:cursor-grabbing"
+          data-testid="button-player-drag"
+        ><GripVertical className="size-4" /></button>
         {track.kind === 'audio' ? <>
           <audio ref={audioRef} src={track.src} onEnded={() => setPlaying(false)} onError={() => setError('That audio link would not load.')} />
           <button type="button" onClick={toggle} className="press grid size-10 shrink-0 place-items-center rounded-full bg-flame text-ink" aria-label={playing ? 'Pause' : 'Play'} data-testid="button-player-toggle">{playing ? <Pause className="size-4" fill="currentColor" /> : <Play className="size-4" fill="currentColor" />}</button>
@@ -915,6 +959,17 @@ function DashboardPreview() {
     }
     setShowComposer(false);
   };
+  const removeTask = async (id: string) => {
+    const previous = tasks;
+    setTasks((current) => current.filter((item) => item.id !== id));
+    if (!user) return;
+    try {
+      await deleteTask(id);
+    } catch (deleteError) {
+      setTasks(previous);
+      setError(deleteError instanceof Error ? deleteError.message : 'Unable to delete that task.');
+    }
+  };
   const logout = async () => {
     await signOut();
     setUser(null);
@@ -938,7 +993,7 @@ function DashboardPreview() {
   return <AppShell title={title} view={view} onView={setView}>
     <AuthPanel user={user} open={authOpen} onOpenChange={setAuthOpen} onAuthed={hydrate} onLogout={logout} />
     {error && <div className="mb-4 rounded-[12px] border border-coral/30 bg-coral/10 px-4 py-3 text-xs text-[#f2b3a8]" role="alert">{error}</div>}
-    {loading ? <DashboardLoading /> : view === 'dashboard' ? <Overview tasks={tasks} events={events} done={done} xp={xp} streak={streak} name={displayName} avatarUrl={profile?.avatar_url} onToggle={(id) => void toggleTask(id)} onView={setView} /> : view === 'tasks' ? <TasksView tasks={tasks} onToggle={(id) => void toggleTask(id)} onAdd={(value) => void addTask(value)} showComposer={showComposer} setShowComposer={setShowComposer} /> : view === 'calendar' ? <CalendarView events={events} onAdd={(event) => setEvents((current) => [...current, event])} /> : view === 'leaderboard' ? <LeaderboardView entries={leaderboard} loading={leaderboardLoading} error={leaderboardError} onRetry={() => void loadLeaderboard()} /> : view === 'profile' ? <ProfileView name={displayName} email={user?.email ?? ''} avatarUrl={profile?.avatar_url} xp={xp} streak={streak} tasksTotal={tasks.length} tasksDone={done} onLogout={() => void logout()} /> : <FocusView onSessionComplete={awardXp} />}
+    {loading ? <DashboardLoading /> : view === 'dashboard' ? <Overview tasks={tasks} events={events} done={done} xp={xp} streak={streak} name={displayName} avatarUrl={profile?.avatar_url} onToggle={(id) => void toggleTask(id)} onDelete={(id) => void removeTask(id)} onView={setView} /> : view === 'tasks' ? <TasksView tasks={tasks} onToggle={(id) => void toggleTask(id)} onDelete={(id) => void removeTask(id)} onAdd={(value) => void addTask(value)} showComposer={showComposer} setShowComposer={setShowComposer} /> : view === 'calendar' ? <CalendarView events={events} onAdd={(event) => setEvents((current) => [...current, event])} /> : view === 'leaderboard' ? <LeaderboardView entries={leaderboard} loading={leaderboardLoading} error={leaderboardError} onRetry={() => void loadLeaderboard()} /> : view === 'profile' ? <ProfileView name={displayName} email={user?.email ?? ''} avatarUrl={profile?.avatar_url} xp={xp} streak={streak} tasksTotal={tasks.length} tasksDone={done} onLogout={() => void logout()} /> : <FocusView onSessionComplete={awardXp} />}
   </AppShell>;
 }
 
@@ -1006,6 +1061,16 @@ function dayLabel(key: string) {
   return date.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' });
 }
 
+/** Newest task first, using when it was created. */
+function sortNewestFirst(tasks: HabitTask[]) {
+  return [...tasks].sort((a, b) => {
+    const at = new Date(a.created_at ?? a.dueDate ?? 0).getTime();
+    const bt = new Date(b.created_at ?? b.dueDate ?? 0).getTime();
+    if (bt !== at) return bt - at;
+    return a.id < b.id ? 1 : a.id > b.id ? -1 : 0;
+  });
+}
+
 /** Groups tasks by their day, newest day first. */
 function groupTasksByDay(tasks: HabitTask[]) {
   const groups = new Map<string, HabitTask[]>();
@@ -1017,12 +1082,12 @@ function groupTasksByDay(tasks: HabitTask[]) {
   }
   return [...groups.entries()]
     .sort((a, b) => (a[0] < b[0] ? 1 : a[0] > b[0] ? -1 : 0))
-    .map(([key, items]) => ({ key, label: dayLabel(key), tasks: items }));
+    .map(([key, items]) => ({ key, label: dayLabel(key), tasks: sortNewestFirst(items) }));
 }
 
-function Overview({ tasks, events, xp, streak, name, avatarUrl, onToggle, onView }: { tasks: HabitTask[]; events: HabitEvent[]; done: number; xp: number; streak: number; name: string; avatarUrl?: string | null | undefined; onToggle: (id: string) => void; onView: (view: View) => void }) {
+function Overview({ tasks, events, xp, streak, name, avatarUrl, onToggle, onDelete, onView }: { tasks: HabitTask[]; events: HabitEvent[]; done: number; xp: number; streak: number; name: string; avatarUrl?: string | null | undefined; onToggle: (id: string) => void; onDelete: (id: string) => void; onView: (view: View) => void }) {
   const today = dayKey(new Date());
-  const todaysTasks = tasks.filter((task) => taskDayKey(task) === today);
+  const todaysTasks = sortNewestFirst(tasks.filter((task) => taskDayKey(task) === today));
   const todaysDone = todaysTasks.filter((task) => task.done).length;
   return <div className="space-y-4">
     <div className="lg:hidden"><div className="eyebrow text-[#796f62]">{new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</div><h1 className="mt-2 font-display text-2xl font-semibold tracking-[-.05em]">A good day to begin.</h1></div>
@@ -1035,7 +1100,7 @@ function Overview({ tasks, events, xp, streak, name, avatarUrl, onToggle, onView
     <div className="grid gap-4 lg:grid-cols-[1.16fr_.84fr]">
       <section className="rounded-[16px] border border-line bg-surface p-4 sm:p-5" data-testid="card-today-tasks">
         <div className="mb-4 flex items-center justify-between"><div className="flex items-center gap-2"><span className="size-2 rounded-full bg-coral" /><h2 className="font-display text-sm font-semibold">Today's tasks</h2></div><button type="button" onClick={() => onView('tasks')} className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-[#91887b] hover:text-flame" data-testid="button-view-all-tasks">View all <ChevronRight className="size-3" /></button></div>
-        <div className="space-y-1">{todaysTasks.slice(0, 4).map((task) => <TaskRow key={task.id} task={task} onToggle={onToggle} />)}</div>
+        <div className="space-y-1">{todaysTasks.slice(0, 4).map((task) => <TaskRow key={task.id} task={task} onToggle={onToggle} onDelete={onDelete} />)}</div>
         {todaysTasks.length === 0 && <EmptyState icon={<ListChecks className="size-5" />} title="A clear slate" copy="Add one small thing to begin." action="Add a task" onClick={() => onView('tasks')} />}
         <div className="mt-4 border-t border-line pt-3 text-right font-mono text-[10px] text-[#82796d]">{todaysDone} of {todaysTasks.length} complete today · {todaysTasks.reduce((sum, task) => sum + (task.done ? task.xp : 0), 0)} XP earned</div>
       </section>
@@ -1056,8 +1121,20 @@ function Stat({ value, label, color }: { value: string; label: string; color: 'c
   return <div className="rounded-[14px] border border-line bg-surface p-3 sm:p-4"><div className="font-display text-2xl font-semibold tracking-[-.06em]">{value}</div><div className="mt-1.5 font-mono text-[9px] uppercase tracking-[.12em] text-[#82796d]">{label}</div><div className="mt-3 h-1 overflow-hidden rounded-full bg-[#433b32]"><div className={`h-full w-2/3 rounded-full ${className}`} /></div></div>;
 }
 
-function TaskRow({ task, onToggle }: { task: HabitTask; onToggle: (id: string) => void }) {
-  return <div className="flex items-center gap-3 rounded-[10px] px-1 py-2.5 transition-colors hover:bg-[#332d26]"><button type="button" aria-pressed={task.done} aria-label={`${task.done ? 'Mark incomplete' : 'Mark complete'}: ${task.title}`} onClick={() => onToggle(task.id)} className={`grid size-5 shrink-0 place-items-center rounded-[5px] border-2 transition-colors ${task.done ? 'border-coral bg-coral text-ink' : 'border-[#675b4c] hover:border-coral'}`} data-testid={`button-toggle-task-${task.id}`}>{task.done && <Check className="check-pop size-3.5" strokeWidth={3} />}</button><span className={`min-w-0 flex-1 text-sm ${task.done ? 'strike-line' : ''}`}>{task.title}</span><span className="hidden font-mono text-[9px] uppercase text-[#82796d] sm:inline">{task.time}</span><span className="font-mono text-[10px] text-flame">+{task.xp}</span></div>;
+function TaskRow({ task, onToggle, onDelete }: { task: HabitTask; onToggle: (id: string) => void; onDelete?: (id: string) => void }) {
+  const [confirming, setConfirming] = useState(false);
+  return <div className="group flex items-center gap-3 rounded-[10px] px-1 py-2.5 transition-colors hover:bg-[#332d26]">
+    <button type="button" aria-pressed={task.done} aria-label={`${task.done ? 'Mark incomplete' : 'Mark complete'}: ${task.title}`} onClick={() => onToggle(task.id)} className={`grid size-5 shrink-0 place-items-center rounded-[5px] border-2 transition-colors ${task.done ? 'border-coral bg-coral text-ink' : 'border-[#675b4c] hover:border-coral'}`} data-testid={`button-toggle-task-${task.id}`}>{task.done && <Check className="check-pop size-3.5" strokeWidth={3} />}</button>
+    <span className={`min-w-0 flex-1 text-sm ${task.done ? 'strike-line' : ''}`}>{task.title}</span>
+    <span className="hidden font-mono text-[9px] uppercase text-[#82796d] sm:inline">{task.time}</span>
+    <span className="font-mono text-[10px] text-flame">+{task.xp}</span>
+    {onDelete && (confirming
+      ? <span className="flex shrink-0 items-center gap-1">
+        <button type="button" onClick={() => { setConfirming(false); onDelete(task.id); }} className="press rounded-[8px] bg-coral px-2 py-1 text-[10px] font-semibold text-ink" data-testid={`button-confirm-delete-task-${task.id}`}>Delete</button>
+        <button type="button" onClick={() => setConfirming(false)} className="press rounded-[8px] border border-line px-2 py-1 text-[10px] text-[#a49b8a]" data-testid={`button-cancel-delete-task-${task.id}`}>Keep</button>
+      </span>
+      : <button type="button" onClick={() => setConfirming(true)} aria-label={`Delete task: ${task.title}`} className="press grid size-7 shrink-0 place-items-center rounded-[8px] text-[#82796d] opacity-70 transition-colors hover:bg-coral/10 hover:text-coral focus-visible:opacity-100 group-hover:opacity-100" data-testid={`button-delete-task-${task.id}`}><Trash2 className="size-3.5" /></button>)}
+  </div>;
 }
 
 function EventRow({ event, last }: { event: HabitEvent; last: boolean }) {
@@ -1104,7 +1181,7 @@ function EmptyState({ icon, title, copy, action, onClick }: { icon: ReactNode; t
   return <div className="rounded-[12px] border border-dashed border-line px-4 py-7 text-center"><div className="mx-auto grid size-10 place-items-center rounded-full bg-[#332d26] text-[#91887b]">{icon}</div><div className="mt-3 text-sm font-medium">{title}</div><p className="mt-1 text-xs text-[#82796d]">{copy}</p><button type="button" onClick={onClick} className="mt-4 text-xs font-medium text-flame hover:text-cream" data-testid={`button-empty-${action.toLowerCase().replaceAll(' ', '-')}`}>{action} <ArrowRight className="ml-1 inline size-3" /></button></div>;
 }
 
-function TasksView({ tasks, onToggle, onAdd, showComposer, setShowComposer }: { tasks: HabitTask[]; onToggle: (id: string) => void; onAdd: (title: string) => void; showComposer: boolean; setShowComposer: (show: boolean) => void }) {
+function TasksView({ tasks, onToggle, onDelete, onAdd, showComposer, setShowComposer }: { tasks: HabitTask[]; onToggle: (id: string) => void; onDelete: (id: string) => void; onAdd: (title: string) => void; showComposer: boolean; setShowComposer: (show: boolean) => void }) {
   const [title, setTitle] = useState('');
   const submit = () => { onAdd(title); setTitle(''); };
   return <div className="max-w-[760px] space-y-4" data-testid="view-tasks"><div className="flex items-end justify-between"><div><div className="eyebrow text-coral">Keep it light</div><h2 className="mt-2 font-display text-3xl font-semibold tracking-[-.06em]">The task shelf</h2><p className="mt-2 text-sm text-[#9f9688]">Small enough to start. Specific enough to finish.</p></div><button type="button" onClick={() => setShowComposer(!showComposer)} className="press grid size-10 place-items-center rounded-[11px] bg-flame text-ink" aria-label="Add a task" data-testid="button-add-task"><Plus className="size-5" /></button></div>
@@ -1116,7 +1193,7 @@ function TasksView({ tasks, onToggle, onAdd, showComposer, setShowComposer }: { 
           <h3 className="font-display text-sm font-semibold" data-testid={`text-task-day-${group.key}`}>{group.label}</h3>
           <span className="font-mono text-[10px] uppercase tracking-wider text-[#82796d]">{group.tasks.filter((task) => task.done).length}/{group.tasks.length} done · {group.tasks.reduce((sum, task) => sum + (task.done ? task.xp : 0), 0)} XP</span>
         </div>
-        <div className="divide-y divide-[#494138]">{group.tasks.map((task) => <TaskRow key={task.id} task={task} onToggle={onToggle} />)}</div>
+        <div className="divide-y divide-[#494138]">{group.tasks.map((task) => <TaskRow key={task.id} task={task} onToggle={onToggle} onDelete={onDelete} />)}</div>
       </section>)}
   </div>;
 }
@@ -1147,27 +1224,70 @@ function CalendarView({ events, onAdd }: { events: HabitEvent[]; onAdd: (event: 
 function FocusView({ onSessionComplete }: { onSessionComplete: (xp: number) => void }) {
   const SESSION = 25 * 60;
   const SESSION_XP = 25;
-  const [running, setRunning] = useState(false);
-  const [seconds, setSeconds] = useState(SESSION);
+  const STORE_KEY = 'habitot-focus';
+  const [endsAt, setEndsAt] = useState<number | null>(null);
+  const [paused, setPaused] = useState(SESSION);
   const [sessions, setSessions] = useState(0);
   const [earned, setEarned] = useState(0);
+  const [tick, setTick] = useState(() => Date.now());
   const [link, setLink] = useState('');
   const { load, error, track, playing, toggle, stop } = usePlayer();
 
+  // Restore a session that was left running while the app was closed or in another tab.
   useEffect(() => {
-    if (!running) return;
-    const timer = window.setInterval(() => setSeconds((value) => {
-      if (value > 1) return value - 1;
-      window.setTimeout(() => {
-        setRunning(false);
-        setSessions((count) => count + 1);
-        setEarned((total) => total + SESSION_XP);
-        onSessionComplete(SESSION_XP);
-      }, 0);
-      return SESSION;
-    }), 1000);
-    return () => window.clearInterval(timer);
-  }, [running, onSessionComplete]);
+    try {
+      const raw = window.localStorage.getItem(STORE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as { endsAt?: number | null; paused?: number; sessions?: number; earned?: number };
+      setSessions(Math.max(0, Number(saved.sessions ?? 0)));
+      setEarned(Math.max(0, Number(saved.earned ?? 0)));
+      if (saved.endsAt && saved.endsAt > Date.now()) setEndsAt(saved.endsAt);
+      else setPaused(Math.max(0, Math.min(SESSION, Number(saved.paused ?? SESSION))) || SESSION);
+    } catch {
+      /* ignore a corrupt saved session */
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(STORE_KEY, JSON.stringify({ endsAt, paused, sessions, earned }));
+  }, [endsAt, paused, sessions, earned]);
+
+  // A wall-clock end time keeps counting down while the tab is hidden or the app is minimised.
+  useEffect(() => {
+    if (endsAt === null) return;
+    const timer = window.setInterval(() => setTick(Date.now()), 500);
+    const resync = () => setTick(Date.now());
+    window.addEventListener('visibilitychange', resync);
+    window.addEventListener('focus', resync);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('visibilitychange', resync);
+      window.removeEventListener('focus', resync);
+    };
+  }, [endsAt]);
+
+  const seconds = endsAt === null ? paused : Math.max(0, Math.ceil((endsAt - tick) / 1000));
+  const running = endsAt !== null;
+
+  useEffect(() => {
+    if (endsAt === null || seconds > 0) return;
+    setEndsAt(null);
+    setPaused(SESSION);
+    setSessions((count) => count + 1);
+    setEarned((total) => total + SESSION_XP);
+    onSessionComplete(SESSION_XP);
+  }, [endsAt, seconds, onSessionComplete]);
+
+  const startOrPause = () => {
+    if (endsAt === null) {
+      const base = seconds > 0 ? seconds : SESSION;
+      setTick(Date.now());
+      setEndsAt(Date.now() + base * 1000);
+    } else {
+      setPaused(seconds);
+      setEndsAt(null);
+    }
+  };
 
   const minutes = String(Math.floor(seconds / 60)).padStart(2, '0');
   const remaining = String(seconds % 60).padStart(2, '0');
@@ -1181,9 +1301,9 @@ function FocusView({ onSessionComplete }: { onSessionComplete: (xp: number) => v
         <div className="mx-auto grid size-16 place-items-center rounded-[17px] bg-teal/15 text-teal"><Music2 className="size-7" /></div>
         <div className="eyebrow mt-7 text-[#9dbbb0]">Quiet room · 25 minute session</div>
         <div className="mt-5 font-mono text-[clamp(4rem,13vw,7rem)] leading-none tracking-[-.08em] text-cream" data-testid="text-focus-timer">{minutes}:{remaining}</div>
-        <div className="mt-4 text-sm text-[#a9bdb3]">A good place to put one thing down.</div>
-        <button type="button" onClick={() => setRunning(!running)} className="press mt-8 rounded-[11px] bg-flame px-6 py-3 text-sm font-semibold text-ink" data-testid="button-toggle-focus">{running ? 'Pause the room' : 'Start a focus session'}</button>
-        <button type="button" onClick={() => { setRunning(false); setSeconds(SESSION); }} className="ml-3 rounded-[11px] border border-[#536760] px-4 py-3 text-sm text-[#b5c8be] hover:bg-[#33433e]" data-testid="button-reset-focus">Reset</button>
+        <div className="mt-4 text-sm text-[#a9bdb3]">A good place to put one thing down.{running ? ' It keeps running if you leave or minimise the app.' : ''}</div>
+        <button type="button" onClick={startOrPause} className="press mt-8 rounded-[11px] bg-flame px-6 py-3 text-sm font-semibold text-ink" data-testid="button-toggle-focus">{running ? 'Pause the room' : 'Start a focus session'}</button>
+        <button type="button" onClick={() => { setEndsAt(null); setPaused(SESSION); }} className="ml-3 rounded-[11px] border border-[#536760] px-4 py-3 text-sm text-[#b5c8be] hover:bg-[#33433e]" data-testid="button-reset-focus">Reset</button>
       </div>
     </section>
 

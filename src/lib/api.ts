@@ -242,3 +242,19 @@ export async function updateTask(id: string, done: boolean) {
   if (error) throw asError(error, 'Unable to update that task.');
   return data as HabitTask;
 }
+
+export async function renameTask(id: string, title: string) {
+  const { data, error } = await supabase
+    .from('tasks')
+    .update({ title, xp: autoXpFor(title) })
+    .eq('id', id)
+    .select('*')
+    .single();
+  if (error) throw asError(error, 'Unable to rename that task.');
+  return data as HabitTask;
+}
+
+export async function deleteTask(id: string) {
+  const { error } = await supabase.from('tasks').delete().eq('id', id);
+  if (error) throw asError(error, 'Unable to delete that task.');
+}
