@@ -58,7 +58,7 @@ import {
 const queryClient = new QueryClient();
 
 type View = 'dashboard' | 'tasks' | 'calendar' | 'focus' | 'leaderboard' | 'profile';
-type HabitEvent = { id: string; day: string; date: string; title: string; time: string; tone: 'teal' | 'coral' | 'sky' };
+type HabitEvent = { id: string; iso: string; day: string; date: string; title: string; time: string; tone: 'teal' | 'coral' | 'sky' };
 
 
 const navItems: { id: View; label: string; icon: typeof LayoutGrid }[] = [
