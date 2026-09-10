@@ -44,6 +44,33 @@ export type Database = {
         }
         Relationships: []
       }
+      leaderboard: {
+        Row: {
+          avatar_url: string | null
+          display_name: string | null
+          id: string
+          streak_days: number
+          updated_at: string
+          xp: number
+        }
+        Insert: {
+          avatar_url?: string | null
+          display_name?: string | null
+          id: string
+          streak_days?: number
+          updated_at?: string
+          xp?: number
+        }
+        Update: {
+          avatar_url?: string | null
+          display_name?: string | null
+          id?: string
+          streak_days?: number
+          updated_at?: string
+          xp?: number
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
