@@ -68,7 +68,10 @@ export default defineConfig({
           skipWaiting: true,
           runtimeCaching: [
             {
-              urlPattern: ({ request }) => request.mode === "navigate",
+              urlPattern: ({ request, url }) =>
+                request.mode === "navigate" &&
+                !url.pathname.startsWith("/~oauth") &&
+                !url.pathname.startsWith("/api/"),
               handler: "NetworkFirst",
               options: {
                 cacheName: "habitot-pages",
@@ -76,6 +79,7 @@ export default defineConfig({
                 expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 },
               },
             },
+
             {
               urlPattern: ({ request, sameOrigin }) =>
                 sameOrigin && ["style", "script", "worker", "image", "font"].includes(request.destination),
