@@ -1198,26 +1198,90 @@ function TasksView({ tasks, onToggle, onDelete, onAdd, showComposer, setShowComp
   </div>;
 }
 
-function CalendarView({ events, onAdd }: { events: HabitEvent[]; onAdd: (event: HabitEvent) => void }) {
+function CalendarView({ events, onAdd, onDelete }: { events: HabitEvent[]; onAdd: (event: HabitEvent) => void; onDelete: (id: string) => void }) {
+  const today = new Date();
+  const [cursor, setCursor] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
+  const [selected, setSelected] = useState(() => dayKey(today));
   const [adding, setAdding] = useState(false);
   const [title, setTitle] = useState('');
+  const [time, setTime] = useState('09:00');
+
+  const year = cursor.getFullYear();
+  const month = cursor.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  // Monday-first offset
+  const lead = (new Date(year, month, 1).getDay() + 6) % 7;
+  const cells: (Date | null)[] = [
+    ...Array.from({ length: lead }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, i) => new Date(year, month, i + 1)),
+  ];
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const countFor = (key: string) => events.filter((event) => event.iso === key).length;
+  const selectedDate = new Date(`${selected}T00:00:00`);
+  const dayEvents = events.filter((event) => event.iso === selected).sort((a, b) => a.time.localeCompare(b.time));
+
   const submit = () => {
     if (!title.trim()) return;
-    const now = new Date();
     onAdd({
       id: `event-${Date.now()}`,
-      day: now.toLocaleDateString(undefined, { weekday: 'short' }).toUpperCase(),
-      date: String(now.getDate()),
+      iso: selected,
+      day: selectedDate.toLocaleDateString(undefined, { weekday: 'short' }).toUpperCase(),
+      date: String(selectedDate.getDate()),
       title: title.trim(),
-      time: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
+      time,
       tone: 'teal',
     });
     setTitle('');
     setAdding(false);
   };
-  return <div className="space-y-4" data-testid="view-calendar"><div className="flex items-end justify-between"><div><div className="eyebrow text-teal">Make space for it</div><h2 className="mt-2 font-display text-3xl font-semibold tracking-[-.06em]">October, in view</h2><p className="mt-2 text-sm text-[#9f9688]">Your days, with enough breathing room.</p></div><button type="button" onClick={() => setAdding(!adding)} className="press inline-flex items-center gap-2 rounded-[11px] bg-teal px-3.5 py-2.5 text-xs font-semibold text-ink" data-testid="button-add-event"><Plus className="size-4" /> Add event</button></div>
-    {adding && <div className="flex max-w-[600px] gap-2 rounded-[14px] border border-teal/30 bg-teal/10 p-3"><input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') submit(); }} placeholder="Name this moment" className="min-w-0 flex-1 bg-transparent px-2 text-sm outline-none placeholder:text-[#8f9688]" data-testid="input-new-event" /><button type="button" onClick={submit} className="rounded-[9px] bg-teal px-3 py-2 text-xs font-semibold text-ink" data-testid="button-save-event">Add</button></div>}
-    <div className="grid gap-4 lg:grid-cols-[1.1fr_.9fr]"><section className="rounded-[16px] border border-line bg-surface p-4 sm:p-5"><div className="grid grid-cols-7 gap-1 text-center font-mono text-[9px] uppercase text-[#82796d]">{['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day) => <div key={day} className="py-2">{day}</div>)}{Array.from({ length: 28 }, (_, i) => <div key={i} className={`grid aspect-square place-items-center rounded-[8px] text-xs ${i === 13 ? 'bg-flame font-semibold text-ink' : [14, 15, 16].includes(i) ? 'bg-[#332d26] text-cream' : 'text-[#82796d] hover:bg-[#332d26]'}`}>{i + 1}</div>)}</div></section><section className="rounded-[16px] border border-line bg-surface p-4 sm:p-5"><div className="mb-3 flex items-center gap-2"><span className="size-2 rounded-full bg-teal" /><h3 className="font-display text-sm font-semibold">This week</h3></div>{events.length ? events.map((event, index) => <EventRow key={event.id} event={event} last={index === events.length - 1} />) : <EmptyState icon={<CalendarDays className="size-5" />} title="Open calendar" copy="Your next plan can live here." action="Add an event" onClick={() => setAdding(true)} />}</section></div>
+
+  return <div className="space-y-4" data-testid="view-calendar">
+    <div className="flex items-end justify-between gap-3">
+      <div>
+        <div className="eyebrow text-teal">Make space for it</div>
+        <h2 className="mt-2 font-display text-3xl font-semibold tracking-[-.06em]">{cursor.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</h2>
+        <p className="mt-2 text-sm text-[#9f9688]">Pick any day, then add what belongs there.</p>
+      </div>
+      <button type="button" onClick={() => setAdding(!adding)} className="press inline-flex shrink-0 items-center gap-2 rounded-[11px] bg-teal px-3.5 py-2.5 text-xs font-semibold text-ink" data-testid="button-add-event"><Plus className="size-4" /> Add event</button>
+    </div>
+
+    {adding && <div className="flex max-w-[640px] flex-wrap items-center gap-2 rounded-[14px] border border-teal/30 bg-teal/10 p-3">
+      <input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') submit(); }} placeholder={`Name this moment · ${selectedDate.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`} className="min-w-0 flex-1 bg-transparent px-2 text-sm outline-none placeholder:text-[#8f9688]" data-testid="input-new-event" />
+      <input type="time" value={time} onChange={(event) => setTime(event.target.value)} className="rounded-[9px] border border-line bg-surface px-2 py-1.5 font-mono text-xs outline-none" data-testid="input-event-time" />
+      <button type="button" onClick={submit} className="rounded-[9px] bg-teal px-3 py-2 text-xs font-semibold text-ink" data-testid="button-save-event">Add</button>
+    </div>}
+
+    <div className="grid gap-4 lg:grid-cols-[1.1fr_.9fr]">
+      <section className="rounded-[16px] border border-line bg-surface p-4 sm:p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <button type="button" onClick={() => setCursor(new Date(year, month - 1, 1))} className="press grid size-8 place-items-center rounded-[9px] border border-line text-[#9f9688] hover:text-cream" aria-label="Previous month" data-testid="button-prev-month"><ChevronRight className="size-4 rotate-180" /></button>
+          <div className="font-mono text-[10px] uppercase tracking-wider text-[#9f9688]">{cursor.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</div>
+          <button type="button" onClick={() => setCursor(new Date(year, month + 1, 1))} className="press grid size-8 place-items-center rounded-[9px] border border-line text-[#9f9688] hover:text-cream" aria-label="Next month" data-testid="button-next-month"><ChevronRight className="size-4" /></button>
+        </div>
+        <div className="grid grid-cols-7 gap-1 text-center font-mono text-[9px] uppercase text-[#82796d]">
+          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((label) => <div key={label} className="py-2">{label[0]}</div>)}
+          {cells.map((date, index) => {
+            if (!date) return <div key={`empty-${index}`} />;
+            const key = dayKey(date);
+            const isToday = key === dayKey(today);
+            const isSelected = key === selected;
+            const count = countFor(key);
+            return <button key={key} type="button" onClick={() => setSelected(key)} className={`press relative grid aspect-square place-items-center rounded-[8px] text-xs transition ${isSelected ? 'bg-flame font-semibold text-ink' : isToday ? 'border border-flame/60 text-cream' : 'text-[#82796d] hover:bg-[#332d26]'}`} data-testid={`button-day-${key}`}>
+              {date.getDate()}
+              {count > 0 && <span className={`absolute bottom-1 size-1 rounded-full ${isSelected ? 'bg-ink' : 'bg-teal'}`} />}
+            </button>;
+          })}
+        </div>
+      </section>
+      <section className="rounded-[16px] border border-line bg-surface p-4 sm:p-5">
+        <div className="mb-3 flex items-center gap-2"><span className="size-2 rounded-full bg-teal" /><h3 className="font-display text-sm font-semibold">{selectedDate.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</h3></div>
+        {dayEvents.length ? dayEvents.map((event, index) => <div key={event.id} className="flex items-center gap-2">
+          <div className="min-w-0 flex-1"><EventRow event={event} last={index === dayEvents.length - 1} /></div>
+          <button type="button" onClick={() => onDelete(event.id)} className="press grid size-8 shrink-0 place-items-center rounded-[9px] text-[#82796d] hover:text-coral" aria-label="Delete event" data-testid={`button-delete-event-${event.id}`}><Trash2 className="size-4" /></button>
+        </div>) : <EmptyState icon={<CalendarDays className="size-5" />} title="Nothing on this day" copy="Your next plan can live here." action="Add an event" onClick={() => setAdding(true)} />}
+      </section>
+    </div>
   </div>;
 }
 
